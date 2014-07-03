@@ -1,0 +1,11 @@
+AlarmWorkflow - Parser v0.9.7.0 Release Notes
+=============================================
+
+Änderungen seit v0.9.6.0
+------------------------
+
+Bearbeitet
+  * ...
+  
+Hinzugefügt
+  * ...
