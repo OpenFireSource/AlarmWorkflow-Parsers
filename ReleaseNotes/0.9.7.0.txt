@@ -9,3 +9,4 @@ Bearbeitet
   
 Hinzugefügt
   * Neuer Parser für ILS Würzburg
+  * Neuer Parser für ILS Kreuznach
