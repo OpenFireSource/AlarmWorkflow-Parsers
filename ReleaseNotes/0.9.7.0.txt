@@ -10,3 +10,4 @@ Bearbeitet
 Hinzugefügt
   * Neuer Parser für ILS Würzburg
   * Neuer Parser für ILS Kreuznach
+  * Neuer Parser für ILS Ingolstadt
