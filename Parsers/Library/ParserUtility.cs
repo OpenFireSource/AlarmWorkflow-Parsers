@@ -116,7 +116,7 @@ namespace AlarmWorkflow.Parser.Library
                 line = line.Remove(0, 1).Trim();
             }
 
-            return line;
+            return line.Trim();
         }
 
         /// <summary>

@@ -30,7 +30,7 @@ namespace AlarmWorkflow.Parser.Library
 
         #region Constants
 
-        private static readonly string[] Keywords = new[] { "", "EINSATZNUMMER", "ABSENDER", "NAME", "STRAßE", "ORT", "OBJEKT", "KREUZUNG", "STICHWORT B", "STICHWORT SO", "PRIO.", "SCHLAGW", "EINSATZMITELNAME" };
+        private static readonly string[] Keywords = new[] { "", "EINSATZNUMMER", "ABSENDER", "NAME", "STRAßE", "ORT", "OBJEKT", "KREUZUNG", "STICHWORT B", "STICHWORT SO", "PRIO.", "SCHLAGW", "EINSATZMITTELNAME" };
 
         #endregion
 
@@ -313,7 +313,7 @@ namespace AlarmWorkflow.Parser.Library
                             {
                                 switch (prefix)
                                 {
-                                    case "EINSATZMITELNAME":
+                                    case "EINSATZMITTELNAME":
                                         last.FullName = msg.Trim();
                                         break;
 

@@ -5,7 +5,8 @@ AlarmWorkflow - Parser v0.9.7.0 Release Notes
 ------------------------
 
 Bearbeitet
-  * ...
+  * Einsatzmittel von der ILS Passau werden nun korrekt ausgelesen.
+  * Leerzeichen am Anfang und am Ende der Daten werden nun entfernt.
   
 Hinzugefügt
   * Neuer Parser für ILS Würzburg
