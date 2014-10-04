@@ -41,6 +41,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="IlsBayreuthParser.cs" />
     <Compile Include="IlsIngolstadtParser.cs" />
     <Compile Include="ILSKreuznachParser.cs" />
     <Compile Include="IlsWuerzburgParser.cs" />
