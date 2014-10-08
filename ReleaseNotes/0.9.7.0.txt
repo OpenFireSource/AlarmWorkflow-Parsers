@@ -13,3 +13,4 @@ Hinzugefügt
   * Neuer Parser für ILS Kreuznach
   * Neuer Parser für ILS Ingolstadt
   * Neuer Parser für ILS Bayreuth/Kulmbach
+  * Neuer Parser für ILST Südtirol
