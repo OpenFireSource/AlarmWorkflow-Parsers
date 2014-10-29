@@ -32,59 +32,6 @@ namespace AlarmWorkflow.Parser.Library
 
         #region Methods
 
-        private DateTime ReadFaxTimestamp(string line, DateTime fallback)
-        {
-            DateTime date = fallback;
-            TimeSpan timestamp = date.TimeOfDay;
-
-            Match dt = Regex.Match(line, @"(0[1-9]|[12][0-9]|3[01])[- /.](0[1-9]|1[012])[- /.](19|20)\d\d");
-            Match ts = Regex.Match(line, @"([01]?[0-9]|2[0-3]):[0-5][0-9]");
-            if (dt.Success)
-            {
-                DateTime.TryParse(dt.Value, out date);
-            }
-            if (ts.Success)
-            {
-                TimeSpan.TryParse(ts.Value, out timestamp);
-            }
-
-            return new DateTime(date.Year, date.Month, date.Day, timestamp.Hours, timestamp.Minutes, timestamp.Seconds, timestamp.Milliseconds, DateTimeKind.Local);
-        }
-
-        private bool StartsWithKeyword(string line, out string keyword)
-        {
-            line = line.ToUpperInvariant();
-            foreach (string kwd in Keywords)
-            {
-                if (line.StartsWith(kwd))
-                {
-                    keyword = kwd;
-                    return true;
-                }
-            }
-            keyword = null;
-            return false;
-        }
-
-        /// <summary>
-        /// Attempts to read the zip code from the city, if available.
-        /// </summary>
-        /// <param name="cityText"></param>
-        /// <returns>The zip code of the city. -or- null, if there was no.</returns>
-        private string ReadZipCodeFromCity(string cityText)
-        {
-            string zipCode = "";
-            foreach (char c in cityText)
-            {
-                if (char.IsNumber(c))
-                {
-                    zipCode += c;
-                    continue;
-                }
-                break;
-            }
-            return zipCode;
-        }
         private bool GetSection(String line, ref CurrentSection section, ref bool keywordsOnly)
         {
             if (line.Contains("MITTEILER"))
@@ -116,7 +63,7 @@ namespace AlarmWorkflow.Parser.Library
             if (line.Contains("EINSATZMITTEL"))
             {
                 section = CurrentSection.FEinsatzmittel;
-                keywordsOnly = true;
+                keywordsOnly = false;
                 return true;
             }
             if (line.Contains("BEMERKUNG"))
@@ -158,7 +105,7 @@ namespace AlarmWorkflow.Parser.Library
                     }
 
                     // Try to parse the header and extract date and time if possible
-                    operation.Timestamp = ReadFaxTimestamp(line, operation.Timestamp);
+                    operation.Timestamp = ParserUtility.ReadFaxTimestamp(line, operation.Timestamp);
 
 
                     if (GetSection(line.Trim(), ref section, ref keywordsOnly))
@@ -173,7 +120,7 @@ namespace AlarmWorkflow.Parser.Library
                     if (keywordsOnly)
                     {
                         string keyword;
-                        if (!StartsWithKeyword(line, out keyword))
+                        if (!ParserUtility.StartsWithKeyword(line,Keywords, out keyword))
                         {
                             continue;
                         }
@@ -229,7 +176,7 @@ namespace AlarmWorkflow.Parser.Library
                                     case "ORT":
                                         {
                                             innerSection = InnerSection.BOrt;
-                                            operation.Einsatzort.ZipCode = ReadZipCodeFromCity(msg);
+                                            operation.Einsatzort.ZipCode = ParserUtility.ReadZipCodeFromCity(msg);
                                             if (string.IsNullOrWhiteSpace(operation.Einsatzort.ZipCode))
                                             {
                                                 Logger.Instance.LogFormat(LogType.Warning, this, "Could not find a zip code for city '{0}'. Route planning may fail or yield wrong results!", operation.Einsatzort.City);
@@ -290,7 +237,7 @@ namespace AlarmWorkflow.Parser.Library
                                 case "ORT":
                                     {
                                         innerSection = InnerSection.BOrt;
-                                        operation.Zielort.ZipCode = ReadZipCodeFromCity(msg);
+                                        operation.Zielort.ZipCode = ParserUtility.ReadZipCodeFromCity(msg);
                                         if (string.IsNullOrWhiteSpace(operation.Zielort.ZipCode))
                                         {
                                             Logger.Instance.LogFormat(LogType.Warning, this, "Could not find a zip code for city '{0}'. Route planning may fail or yield wrong results!", operation.Zielort.City);
@@ -336,7 +283,7 @@ namespace AlarmWorkflow.Parser.Library
                             break;
                         case CurrentSection.FEinsatzmittel:
                             {
-                                operation.Resources.Add(new OperationResource { FullName = msg.Substring(0, msg.IndexOf('(')) });
+                                operation.Resources.Add(new OperationResource { FullName = msg.Substring(0, msg.LastIndexOf('(')) });
                             }
                             break;
                         case CurrentSection.GBemerkung:

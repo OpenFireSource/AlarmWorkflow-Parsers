@@ -1,0 +1,11 @@
+AlarmWorkflow - Parser v0.9.8.0 Release Notes
+=============================================
+
+Änderungen seit v0.9.7.0
+------------------------
+
+Bearbeitet
+  * Einsatzmittel von der ILS Augsburg werden nun korrekt ausgelesen.
+  
+Hinzugefügt
+...
