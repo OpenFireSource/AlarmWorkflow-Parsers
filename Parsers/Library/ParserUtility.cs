@@ -39,6 +39,26 @@ namespace AlarmWorkflow.Parser.Library
         #region Methods
 
         /// <summary>
+        /// Appends a given string with a new line and a given content.
+        /// If the existing value is null or empty the new content gets used for the beginning.
+        /// </summary>
+        /// <param name="value">Existing string.</param>
+        /// <param name="line">New string for new line.</param>
+        /// <returns>Returns the new value.</returns>
+        public static string AppendLine(this string value, string line)
+        {
+            if (string.IsNullOrEmpty(value))
+            {
+                value = line;
+            }
+            else
+            {
+                value = string.Format("{0}{1}{2}", value, Environment.NewLine, line);    
+            }
+            return value;
+        }
+
+        /// <summary>
         /// Attempts to parse the timestamp from a line, using a well-known date and time format.
         /// </summary>
         /// <param name="line">The line of text to parse.</param>
