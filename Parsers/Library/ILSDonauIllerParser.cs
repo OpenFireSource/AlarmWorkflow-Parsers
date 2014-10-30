@@ -180,19 +180,22 @@ namespace AlarmWorkflow.Parser.Library
                                 {
                                     case "STRAßE":
                                         {
+                                            innerSection = InnerSection.AStraße;
                                             string street, streetNumber, appendix;
                                             ParserUtility.AnalyzeStreetLine(msg, out street, out streetNumber, out appendix);
                                             operation.CustomData["Einsatzort Zusatz"] = appendix;
                                             operation.Einsatzort.Street = street;
                                             operation.Einsatzort.StreetNumber = streetNumber;
+                                            
                                         }
                                         break;
                                     case "STR.ABSCHN":
+                                        innerSection = InnerSection.BAbschnitt;
                                         operation.CustomData["Einsatzort Straße Abschnitt"] = msg;
                                         break;
                                     case "ORT":
                                         {
-                                            innerSection = InnerSection.BOrt;
+                                            innerSection = InnerSection.COrt;
                                             operation.Einsatzort.ZipCode = ParserUtility.ReadZipCodeFromCity(msg);
                                             if (string.IsNullOrWhiteSpace(operation.Einsatzort.ZipCode))
                                             {
@@ -203,7 +206,7 @@ namespace AlarmWorkflow.Parser.Library
 
                                             // The City-text often contains a dash after which the administrative city appears multiple times (like "City A - City A City A").
                                             // However we can (at least with google maps) omit this information without problems!
-                                            int dashIndex = operation.Einsatzort.City.IndexOf('-');
+                                            int dashIndex = operation.Einsatzort.City.IndexOf(" - ");
                                             if (dashIndex != -1)
                                             {
                                                 // Ignore everything after the dash
@@ -212,11 +215,11 @@ namespace AlarmWorkflow.Parser.Library
                                         }
                                         break;
                                     case "OBJEKT":
-                                        innerSection = InnerSection.CObjekt;
+                                        innerSection = InnerSection.DObjekt;
                                         operation.Einsatzort.Property = msg;
                                         break;
                                     case "STATION":
-                                        innerSection = InnerSection.DStation;
+                                        innerSection = InnerSection.EStation;
                                         operation.CustomData["Einsatzort Station"] = msg;
                                         break;
                                     default:
@@ -226,13 +229,16 @@ namespace AlarmWorkflow.Parser.Library
                                                 //Quite dirty because of Streetnumber. Looking for better solution
                                                 operation.Einsatzort.Street += msg;
                                                 break;
-                                            case InnerSection.BOrt:
+                                            case InnerSection.BAbschnitt:
+                                                operation.CustomData["Einsatzort Straße Abschnitt"] += msg;
+                                                break;
+                                            case InnerSection.COrt:
                                                 operation.Einsatzort.City += msg;
                                                 break;
-                                            case InnerSection.CObjekt:
+                                            case InnerSection.DObjekt:
                                                 operation.Einsatzort.Property += msg;
                                                 break;
-                                            case InnerSection.DStation:
+                                            case InnerSection.EStation:
                                                 operation.CustomData["Einsatzort Station"] += msg;
                                                 break;
                                         }
@@ -342,9 +348,10 @@ namespace AlarmWorkflow.Parser.Library
         private enum InnerSection
         {
             AStraße,
-            BOrt,
-            CObjekt,
-            DStation,
+            BAbschnitt,
+            COrt,
+            DObjekt,
+            EStation,
         }
         #endregion
 

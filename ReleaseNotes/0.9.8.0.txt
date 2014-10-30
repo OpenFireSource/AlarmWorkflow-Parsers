@@ -6,7 +6,7 @@ AlarmWorkflow - Parser v0.9.8.0 Release Notes
 
 Bearbeitet
   * Einsatzmittel von der ILS Augsburg werden nun korrekt ausgelesen.
-  * Straßen Abschnitt von der ILS Donau-Iller wird nun ausgelesen 
+  * Straßen Abschnitt von der ILS Donau-Iller wird nun ausgelesen  (und weitere Optimierungen)
   
 Hinzugefügt
 ...
