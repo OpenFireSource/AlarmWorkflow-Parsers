@@ -207,7 +207,7 @@ namespace AlarmWorkflow.Parser.Library
                         case CurrentSection.FBemerkung:
                             {
                                 // Append with newline at the end in case that the message spans more than one line
-                                operation.Comment += msg + Environment.NewLine;
+                                operation.Comment = operation.Comment.AppendLine(msg);
                             }
                             break;
                         case CurrentSection.GEinsatzmittel:

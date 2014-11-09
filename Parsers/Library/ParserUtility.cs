@@ -111,7 +111,7 @@ namespace AlarmWorkflow.Parser.Library
         /// <param name="line">The line text to retrieve the message text from.</param>
         /// <param name="prefix">The prefix that is to be removed (optional).</param>
         /// <returns></returns>
-        public static string GetMessageText(string line, string prefix)
+        public static string GetMessageText(string line, string prefix = null)
         {
             if (prefix == null)
             {

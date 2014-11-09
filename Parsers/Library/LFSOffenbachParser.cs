@@ -44,7 +44,7 @@ namespace AlarmWorkflow.Parser.Library
             foreach (var line in lines)
             {
                 string keyword;
-                if (GetKeyword(line, out keyword))
+                if (ParserUtility.StartsWithKeyword(line, _keywords, out keyword))
                 {
                     switch (keyword)
                     {
@@ -69,34 +69,33 @@ namespace AlarmWorkflow.Parser.Library
                 switch (section)
                 {
                     case CurrentSection.BeNr:
-                        operation.OperationNumber = GetMessageText(line, keyword);
+                        operation.OperationNumber = ParserUtility.GetMessageText(line, keyword);
                         break;
                     case CurrentSection.CEinsatzort:
-                        string txt = GetMessageText(line, keyword);
-                        operation.Einsatzort.ZipCode = ReadZipCodeFromCity(txt);
+                        string txt = ParserUtility.GetMessageText(line, keyword);
+                        operation.Einsatzort.ZipCode = ParserUtility.ReadZipCodeFromCity(txt);
                         operation.Einsatzort.City = txt.Remove(0, operation.Einsatzort.ZipCode.Length).Trim();
                         break;
                     case CurrentSection.DStraße:
-                        operation.Einsatzort.Street = GetMessageText(line, keyword);
+                        operation.Einsatzort.Street = ParserUtility.GetMessageText(line, keyword);
                         break;
                     case CurrentSection.FObjekt:
-                        operation.Einsatzort.Property = GetMessageText(line, keyword);
+                        operation.Einsatzort.Property = ParserUtility.GetMessageText(line, keyword);
                         break;
                     case CurrentSection.GEinsatzplan:
-                        operation.OperationPlan = GetMessageText(line, keyword);
+                        operation.OperationPlan = ParserUtility.GetMessageText(line, keyword);
                         break;
                     case CurrentSection.HMeldebild:
-                        operation.Picture = GetMessageText(line, keyword);
+                        operation.Picture = ParserUtility.GetMessageText(line, keyword);
                         break;
                     case CurrentSection.JEinsatzstichwort:
-                        operation.Keywords.EmergencyKeyword = GetMessageText(line, keyword);
+                        operation.Keywords.EmergencyKeyword = ParserUtility.GetMessageText(line, keyword);
                         break;
                     case CurrentSection.KHinweis:
-                        operation.Comment += " " + GetMessageText(line, keyword);
-                        operation.Comment = operation.Comment.Trim();
+                        operation.Comment = operation.Comment.AppendLine(ParserUtility.GetMessageText(line, keyword));
                         break;
                     case CurrentSection.OFaxtime:
-                        operation.Timestamp = ReadFaxTimestamp(line, DateTime.Now);
+                        operation.Timestamp = ParserUtility.ReadFaxTimestamp(line, DateTime.Now);
                         break;
                     case CurrentSection.MEnde:
                         break;
@@ -104,95 +103,6 @@ namespace AlarmWorkflow.Parser.Library
             }
 
             return operation;
-        }
-
-        #endregion
-
-        #region Methods
-
-        private DateTime ReadFaxTimestamp(string line, DateTime fallback)
-        {
-            DateTime date = fallback;
-            TimeSpan timestamp = date.TimeOfDay;
-
-            Match dt = Regex.Match(line, @"(0[1-9]|[12][0-9]|3[01])[- /.](0[1-9]|1[012])[- /.](19|20)\d\d");
-            Match ts = Regex.Match(line, @"([01]?[0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]");
-            if (dt.Success)
-            {
-                DateTime.TryParse(dt.Value, out date);
-            }
-            if (ts.Success)
-            {
-                TimeSpan.TryParse(ts.Value, out timestamp);
-            }
-
-            return new DateTime(date.Year, date.Month, date.Day, timestamp.Hours, timestamp.Minutes, timestamp.Seconds, timestamp.Milliseconds, DateTimeKind.Local);
-        }
-
-        /// <summary>
-        /// Attempts to read the zip code from the city, if available.
-        /// </summary>
-        /// <param name="cityText"></param>
-        /// <returns>The zip code of the city. -or- null, if there was no.</returns>
-        private string ReadZipCodeFromCity(string cityText)
-        {
-            string zipCode = "";
-            foreach (char c in cityText)
-            {
-                if (char.IsNumber(c))
-                {
-                    zipCode += c;
-                    continue;
-                }
-                break;
-            }
-            return zipCode;
-        }
-
-        private bool GetKeyword(string line, out string keyword)
-        {
-            line = line.ToUpperInvariant();
-            foreach (string kwd in _keywords.Where(kwd => line.ToLowerInvariant().StartsWith(kwd.ToLowerInvariant())))
-            {
-                keyword = kwd;
-                return true;
-            }
-            keyword = null;
-            return false;
-        }
-
-        /// <summary>
-        /// Returns the message text, which is the line text but excluding the keyword/prefix and a possible colon.
-        /// </summary>
-        /// <param name="line"></param>
-        /// <param name="prefix">The prefix that is to be removed (optional).</param>
-        /// <returns></returns>
-        private string GetMessageText(string line, string prefix)
-        {
-            if (prefix == null)
-            {
-                prefix = "";
-            }
-
-            if (prefix.Length > 0)
-            {
-                line = line.Remove(0, prefix.Length);
-            }
-            else
-            {
-                int colonIndex = line.IndexOf(':');
-                if (colonIndex != -1)
-                {
-                    line = line.Remove(0, colonIndex + 1);
-                }
-            }
-
-            if (line.StartsWith(":"))
-            {
-                line = line.Remove(0, 1);
-            }
-            line = line.Trim();
-            return line;
         }
 
         #endregion

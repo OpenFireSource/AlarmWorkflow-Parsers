@@ -348,7 +348,7 @@ namespace AlarmWorkflow.Parser.Library
                         case CurrentSection.GBemerkung:
                             {
                                 // Append with newline at the end in case that the message spans more than one line
-                                operation.Comment = operation.Comment += msg + "\n";
+                                operation.Comment = operation.Comment.AppendLine(msg);
                             }
                             break;
                         case CurrentSection.HFooter:
@@ -360,12 +360,6 @@ namespace AlarmWorkflow.Parser.Library
                 {
                     Logger.Instance.LogFormat(LogType.Warning, this, "Error while parsing line '{0}'. The error message was: {1}", i, ex.Message);
                 }
-            }
-
-            // Post-processing the operation if needed
-            if (!string.IsNullOrWhiteSpace(operation.Comment) && operation.Comment.EndsWith("\n"))
-            {
-                operation.Comment = operation.Comment.Substring(0, operation.Comment.Length - 1).Trim();
             }
             return operation;
         }

@@ -44,7 +44,7 @@ namespace AlarmWorkflow.Parser.Library
             foreach (var line in lines)
             {
                 string keyword;
-                if (GetKeyword(line, out keyword))
+                if (ParserUtility.StartsWithKeyword(line, _keywords, out keyword))
                 {
                     switch (keyword.Trim())
                     {
@@ -71,14 +71,14 @@ namespace AlarmWorkflow.Parser.Library
                         int indexOf = line.IndexOf("ALARM", StringComparison.InvariantCultureIgnoreCase);
                         if (indexOf == -1)
                         {
-                            operation.OperationNumber = GetMessageText(line, keyword);
+                            operation.OperationNumber = ParserUtility.GetMessageText(line, keyword);
                             break;
                         }
-                        operation.OperationNumber = GetMessageText(line.Substring(0, indexOf), keyword);
+                        operation.OperationNumber = ParserUtility.GetMessageText(line.Substring(0, indexOf), keyword);
                         keyword = "ALARM";
                         try
                         {
-                            operation.Timestamp = DateTime.Parse(GetMessageText(line.Substring(indexOf), keyword));
+                            operation.Timestamp = DateTime.Parse(ParserUtility.GetMessageText(line.Substring(indexOf), keyword));
                         }
                         catch (FormatException)
                         {
@@ -86,13 +86,13 @@ namespace AlarmWorkflow.Parser.Library
                         }
                         break;
                     case CurrentSection.CMitteiler:
-                        operation.Messenger = GetMessageText(line, keyword);
+                        operation.Messenger = ParserUtility.GetMessageText(line, keyword);
                         break;
                     case CurrentSection.DEinsatzort:
-                        operation.Einsatzort.Location = GetMessageText(line, keyword);
+                        operation.Einsatzort.Location = ParserUtility.GetMessageText(line, keyword);
                         break;
                     case CurrentSection.EStraße:
-                        string msg = GetMessageText(line, keyword);
+                        string msg = ParserUtility.GetMessageText(line, keyword);
                         string street, streetNumber, appendix;
                         ParserUtility.AnalyzeStreetLine(msg, out street, out streetNumber, out appendix);
                         operation.CustomData["Einsatzort Zusatz"] = appendix;
@@ -100,25 +100,25 @@ namespace AlarmWorkflow.Parser.Library
                         operation.Einsatzort.StreetNumber = streetNumber;
                         break;
                     case CurrentSection.FAbschnitt:
-                        operation.CustomData["Einsatzort Abschnitt"] = GetMessageText(line, keyword);
+                        operation.CustomData["Einsatzort Abschnitt"] = ParserUtility.GetMessageText(line, keyword);
                         break;
                     case CurrentSection.GKreuzung:
-                        operation.Einsatzort.Intersection = GetMessageText(line, keyword);
+                        operation.Einsatzort.Intersection = ParserUtility.GetMessageText(line, keyword);
                         break;
                     case CurrentSection.HOrt:
-                        operation.Einsatzort.City = GetMessageText(line, keyword);
+                        operation.Einsatzort.City = ParserUtility.GetMessageText(line, keyword);
                         break;
                     case CurrentSection.JObjekt:
-                        operation.Einsatzort.Property = GetMessageText(line, keyword);
+                        operation.Einsatzort.Property = ParserUtility.GetMessageText(line, keyword);
                         break;
                     case CurrentSection.KEinsatzplan:
-                        operation.OperationPlan = GetMessageText(line, keyword);
+                        operation.OperationPlan = ParserUtility.GetMessageText(line, keyword);
                         break;
                     case CurrentSection.LMeldebild:
-                        operation.Picture = GetMessageText(line, keyword);
+                        operation.Picture = ParserUtility.GetMessageText(line, keyword);
                         break;
                     case CurrentSection.MHinweis:
-                        operation.Comment = GetMessageText(line, keyword);
+                        operation.Comment = ParserUtility.GetMessageText(line, keyword);
                         break;
                     case CurrentSection.NEinsatzmittel:
                         if (line.StartsWith("Geforderte Einsatzmittel", StringComparison.InvariantCultureIgnoreCase))
@@ -149,56 +149,6 @@ namespace AlarmWorkflow.Parser.Library
             }
 
             return operation;
-        }
-
-        #endregion
-
-        #region Methods
-
-        private bool GetKeyword(string line, out string keyword)
-        {
-            line = line.ToUpperInvariant();
-            foreach (string kwd in _keywords.Where(kwd => line.ToLowerInvariant().StartsWith(kwd.ToLowerInvariant())))
-            {
-                keyword = kwd;
-                return true;
-            }
-            keyword = null;
-            return false;
-        }
-
-        /// <summary>
-        /// Returns the message text, which is the line text but excluding the keyword/prefix and a possible colon.
-        /// </summary>
-        /// <param name="line"></param>
-        /// <param name="prefix">The prefix that is to be removed (optional).</param>
-        /// <returns></returns>
-        private string GetMessageText(string line, string prefix)
-        {
-            if (prefix == null)
-            {
-                prefix = "";
-            }
-
-            if (prefix.Length > 0)
-            {
-                line = line.Remove(0, prefix.Length);
-            }
-            else
-            {
-                int colonIndex = line.IndexOf(':');
-                if (colonIndex != -1)
-                {
-                    line = line.Remove(0, colonIndex + 1);
-                }
-            }
-
-            if (line.StartsWith(":"))
-            {
-                line = line.Remove(0, 1);
-            }
-            line = line.Trim();
-            return line;
         }
 
         #endregion

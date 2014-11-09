@@ -172,8 +172,7 @@ namespace AlarmWorkflow.Parser.Library
                             break;
                         case CurrentSection.EBemerkungen:
                             {
-                                // Append with newline at the end in case that the message spans more than one line
-                                operation.Picture += msg + Environment.NewLine;
+                                operation.Picture = operation.Picture.AppendLine(msg);
                             }
                             break;
                         case CurrentSection.ZFooter:

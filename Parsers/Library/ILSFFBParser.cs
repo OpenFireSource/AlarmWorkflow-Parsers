@@ -44,7 +44,7 @@ namespace AlarmWorkflow.Parser.Library
             foreach (var line in lines)
             {
                 string keyword;
-                if (GetKeyword(line, out keyword))
+                if (ParserUtility.StartsWithKeyword(line, _keywords, out keyword))
                 {
                     switch (keyword.Trim())
                     {
@@ -69,22 +69,16 @@ namespace AlarmWorkflow.Parser.Library
                 switch (section)
                 {
                     case CurrentSection.BeNr:
-                        operation.OperationNumber = GetMessageText(line.Substring(0, line.IndexOf("ALARM", StringComparison.Ordinal)), keyword);
-                        keyword = "ALARM";
-                        try
-                        {
-                            operation.Timestamp = DateTime.Parse(GetMessageText(line.Substring(line.IndexOf("ALARM", StringComparison.Ordinal)), keyword));
-                        }
-                        catch (FormatException)
-                        {
-                            operation.Timestamp = DateTime.Now;
-                        }
+                        string opnummer = ParserUtility.GetTextBetween(line, "ALARM");
+                        string optime = ParserUtility.GetTextBetween("ALARM");
+                        operation.OperationNumber = ParserUtility.GetMessageText(opnummer, keyword);
+                        operation.Timestamp = ParserUtility.ReadFaxTimestamp(optime, DateTime.Now);
                         break;
                     case CurrentSection.CEinsatzort:
-                        operation.Zielort.Location = GetMessageText(line, keyword);
+                        operation.Zielort.Location = ParserUtility.GetMessageText(line, keyword);
                         break;
                     case CurrentSection.DStraße:
-                        string msg = GetMessageText(line, keyword);
+                        string msg = ParserUtility.GetMessageText(line, keyword);
                         string street, streetNumber, appendix;
                         ParserUtility.AnalyzeStreetLine(msg, out street, out streetNumber, out appendix);
                         operation.CustomData["Einsatzort Zusatz"] = appendix;
@@ -92,29 +86,22 @@ namespace AlarmWorkflow.Parser.Library
                         operation.Einsatzort.StreetNumber = streetNumber;
                         break;
                     case CurrentSection.EOrt:
-                        operation.Einsatzort.City = GetMessageText(line, keyword);
+                        operation.Einsatzort.City = ParserUtility.GetMessageText(line, keyword);
                         break;
                     case CurrentSection.FObjekt:
-                        operation.Einsatzort.Property = GetMessageText(line, keyword);
+                        operation.Einsatzort.Property = ParserUtility.GetMessageText(line, keyword);
                         break;
                     case CurrentSection.GEinsatzplan:
-                        operation.OperationPlan = GetMessageText(line, keyword);
+                        operation.OperationPlan = ParserUtility.GetMessageText(line, keyword);
                         break;
                     case CurrentSection.HMeldebild:
-                        if (operation.Picture != null)
-                        {
-                            operation.Picture += GetMessageText(line, keyword);
-                        }
-                        else
-                        {
-                            operation.Picture = GetMessageText(line, keyword);
-                        }
+                        operation.Picture = operation.Picture.AppendLine(ParserUtility.GetMessageText(line, keyword));
                         break;
                     case CurrentSection.JEinsatzstichwort:
-                        operation.Keywords.EmergencyKeyword = GetMessageText(line, keyword);
+                        operation.Keywords.EmergencyKeyword = ParserUtility.GetMessageText(line, keyword);
                         break;
                     case CurrentSection.KHinweis:
-                        operation.Comment += " " + GetMessageText(line, keyword);
+                        operation.Comment = operation.Comment.AppendLine(ParserUtility.GetMessageText(line, keyword));
                         break;
                     case CurrentSection.LEinsatzmittel:
                         if (line.Equals("EINSATZMITTEL: ", StringComparison.InvariantCultureIgnoreCase))
@@ -141,55 +128,6 @@ namespace AlarmWorkflow.Parser.Library
             }
 
             return operation;
-        }
-
-        #endregion
-
-        #region Methods
-        private bool GetKeyword(string line, out string keyword)
-        {
-            line = line.ToUpperInvariant();
-            foreach (string kwd in _keywords.Where(kwd => line.ToLowerInvariant().StartsWith(kwd.ToLowerInvariant())))
-            {
-                keyword = kwd;
-                return true;
-            }
-            keyword = null;
-            return false;
-        }
-
-        /// <summary>
-        /// Returns the message text, which is the line text but excluding the keyword/prefix and a possible colon.
-        /// </summary>
-        /// <param name="line"></param>
-        /// <param name="prefix">The prefix that is to be removed (optional).</param>
-        /// <returns></returns>
-        private string GetMessageText(string line, string prefix)
-        {
-            if (prefix == null)
-            {
-                prefix = "";
-            }
-
-            if (prefix.Length > 0)
-            {
-                line = line.Remove(0, prefix.Length);
-            }
-            else
-            {
-                int colonIndex = line.IndexOf(':');
-                if (colonIndex != -1)
-                {
-                    line = line.Remove(0, colonIndex + 1);
-                }
-            }
-
-            if (line.StartsWith(":"))
-            {
-                line = line.Remove(0, 1);
-            }
-            line = line.Trim();
-            return line;
         }
 
         #endregion

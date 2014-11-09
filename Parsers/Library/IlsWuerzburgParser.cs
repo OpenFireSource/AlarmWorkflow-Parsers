@@ -203,7 +203,7 @@ namespace AlarmWorkflow.Parser.Library
 
                                             // The City-text often contains a dash after which the administrative city appears multiple times (like "City A - City A City A").
                                             // However we can (at least with google maps) omit this information without problems!
-                                            int dashIndex = operation.Einsatzort.City.IndexOf('-');
+                                            int dashIndex = operation.Einsatzort.City.IndexOf(" - ");
                                             if (dashIndex != -1)
                                             {
                                                 operation.CustomData["Einsatzort Kommune"] = operation.Einsatzort.City.Substring(dashIndex).Trim();
@@ -323,13 +323,13 @@ namespace AlarmWorkflow.Parser.Library
                         case CurrentSection.GBemerkung:
                             {
                                 // Append with newline at the end in case that the message spans more than one line
-                                operation.Comment = operation.Comment += msg + "\n";
+                                operation.Comment = operation.Comment.AppendLine(msg);
                             }
                             break;
                         case CurrentSection.HTextbausteine:
                             {
                                 // Append with newline at the end in case that the message spans more than one line
-                                operation.Picture = operation.Picture += msg + "\n";
+                                operation.Picture = operation.Picture.AppendLine(msg);
                             }
                             break;
                         case CurrentSection.IFooter:
@@ -343,11 +343,6 @@ namespace AlarmWorkflow.Parser.Library
                 }
             }
 
-            // Post-processing the operation if needed
-            if (!string.IsNullOrWhiteSpace(operation.Comment) && operation.Comment.EndsWith("\n"))
-            {
-                operation.Comment = operation.Comment.Substring(0, operation.Comment.Length - 1).Trim();
-            }
             return operation;
         }
 

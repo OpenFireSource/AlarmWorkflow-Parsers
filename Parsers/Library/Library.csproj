@@ -68,6 +68,7 @@
     <Compile Include="ILSTraunsteinParser.cs" />
     <Compile Include="ILSTrierParser.cs" />
     <Compile Include="LFSOffenbachParser.cs" />
+    <Compile Include="IlsGeraParser.cs" />
     <Compile Include="LstMansfeldSuedharz.cs" />
     <Compile Include="LSTKleveParser.cs" />
     <Compile Include="FEZMuenchenLandParser.cs" />

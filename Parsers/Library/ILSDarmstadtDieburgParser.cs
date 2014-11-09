@@ -45,7 +45,7 @@ namespace AlarmWorkflow.Parser.Library
             foreach (string line in lines)
             {
                 string keyword;
-                if (GetKeyword(line, out keyword))
+                if (ParserUtility.StartsWithKeyword(line, _keywords, out keyword))
                 {
                     switch (keyword)
                     {
@@ -77,22 +77,22 @@ namespace AlarmWorkflow.Parser.Library
                         }
                     case CurrentSection.BOrt:
                         {
-                            operation.Einsatzort.City = GetMessageText(line);
+                            operation.Einsatzort.City = ParserUtility.GetMessageText(line);
                             break;
                         }
                     case CurrentSection.COrtsteil:
                         {
-                            operation.Einsatzort.City += " " + GetMessageText(line);
+                            operation.Einsatzort.City += " " + ParserUtility.GetMessageText(line);
                             break;
                         }
                     case CurrentSection.DStraße:
                         {
-                            operation.Einsatzort.Street = GetMessageText(line);
+                            operation.Einsatzort.Street = ParserUtility.GetMessageText(line);
                             break;
                         }
                     case CurrentSection.EHausnummer:
                         {
-                            operation.Einsatzort.StreetNumber = GetMessageText(line);
+                            operation.Einsatzort.StreetNumber = ParserUtility.GetMessageText(line);
                             break;
                         }
                     case CurrentSection.FKoordinaten:
@@ -101,23 +101,23 @@ namespace AlarmWorkflow.Parser.Library
                         }
                     case CurrentSection.GZusatzinfos:
                         {
-                            operation.Comment = GetMessageText(line);
+                            operation.Comment = ParserUtility.GetMessageText(line);
                             break;
                         }
                     case CurrentSection.HBetroffene:
                         {
-                            operation.Comment += " " + GetMessageText(line);
+                            operation.Comment += " " + ParserUtility.GetMessageText(line);
                             section = CurrentSection.AAnfang;
                             break;
                         }
                     case CurrentSection.IEinsatzart:
                         {
-                            operation.Keywords.EmergencyKeyword = GetMessageText(line);
+                            operation.Keywords.EmergencyKeyword = ParserUtility.GetMessageText(line);
                             break;
                         }
                     case CurrentSection.JStichwort:
                         {
-                            operation.Keywords.Keyword = GetMessageText(line);
+                            operation.Keywords.Keyword = ParserUtility.GetMessageText(line);
                             break;
                         }
                     case CurrentSection.KSondersignal:
@@ -126,7 +126,7 @@ namespace AlarmWorkflow.Parser.Library
                         }
                     case CurrentSection.LZusatzinformationen:
                         {
-                            operation.Picture = GetMessageText(line);
+                            operation.Picture = ParserUtility.GetMessageText(line);
                             section = CurrentSection.AAnfang;
                             break;
                         }
@@ -141,22 +141,22 @@ namespace AlarmWorkflow.Parser.Library
                         }
                     case CurrentSection.NMeldende:
                         {
-                            operation.Messenger = GetMessageText(line);
+                            operation.Messenger = ParserUtility.GetMessageText(line);
                             break;
                         }
                     case CurrentSection.OTelefon:
                         {
-                            operation.Messenger += string.Format(@" Tel.:{0}", GetMessageText(line));
+                            operation.Messenger += string.Format(@" Tel.:{0}", ParserUtility.GetMessageText(line));
                             break;
                         }
                     case CurrentSection.PAusdruck:
                         {
-                            operation.Timestamp = ReadFaxTimestamp(line, DateTime.Now);
+                            operation.Timestamp = ParserUtility.ReadFaxTimestamp(line, DateTime.Now);
                             break;
                         }
                     case CurrentSection.QReferenznummer:
                         {
-                            operation.OperationNumber = GetMessageText(line);
+                            operation.OperationNumber = ParserUtility.GetMessageText(line);
                             break;
                         }
                     case CurrentSection.REnde:
@@ -167,75 +167,6 @@ namespace AlarmWorkflow.Parser.Library
             }
 
             return operation;
-        }
-
-        #endregion
-
-        #region Methods
-
-        private DateTime ReadFaxTimestamp(string line, DateTime fallback)
-        {
-            DateTime date = fallback;
-            TimeSpan timestamp = date.TimeOfDay;
-
-            Match dt = Regex.Match(line, @"(0[1-9]|[12][0-9]|3[01])[- /.](0[1-9]|1[012])[- /.](19|20)\d\d");
-            Match ts = Regex.Match(line, @"([01]?[0-9]|2[0-3]):[0-5][0-9]");
-            if (dt.Success)
-            {
-                DateTime.TryParse(dt.Value, out date);
-            }
-            if (ts.Success)
-            {
-                TimeSpan.TryParse(ts.Value, out timestamp);
-            }
-
-            return new DateTime(date.Year, date.Month, date.Day, timestamp.Hours, timestamp.Minutes, timestamp.Seconds, timestamp.Milliseconds, DateTimeKind.Local);
-        }
-
-        private bool GetKeyword(string line, out string keyword)
-        {
-            line = line.ToUpperInvariant();
-            foreach (string kwd in _keywords.Where(kwd => line.ToLowerInvariant().StartsWith(kwd.ToLowerInvariant())))
-            {
-                keyword = kwd;
-                return true;
-            }
-            keyword = null;
-            return false;
-        }
-
-        /// <summary>
-        /// Returns the message text, which is the line text but excluding the keyword/prefix and a possible colon.
-        /// </summary>
-        /// <param name="line"></param>
-        /// <param name="prefix">The prefix that is to be removed (optional).</param>
-        /// <returns></returns>
-        private string GetMessageText(string line, string prefix = null)
-        {
-            if (prefix == null)
-            {
-                prefix = "";
-            }
-
-            if (prefix.Length > 0)
-            {
-                line = line.Remove(0, prefix.Length);
-            }
-            else
-            {
-                int colonIndex = line.IndexOf(':');
-                if (colonIndex != -1)
-                {
-                    line = line.Remove(0, colonIndex + 1);
-                }
-            }
-
-            if (line.StartsWith(":"))
-            {
-                line = line.Remove(0, 1);
-            }
-            line = line.Trim();
-            return line;
         }
 
         #endregion
