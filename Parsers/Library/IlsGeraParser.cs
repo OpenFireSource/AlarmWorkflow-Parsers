@@ -14,12 +14,6 @@
 // along with AlarmWorkflow.  If not, see <http://www.gnu.org/licenses/>.
 
 using System;
-using System.Collections.Generic;
-using System.Collections.Specialized;
-using System.ComponentModel;
-using System.Globalization;
-using System.Linq;
-using System.Text;
 using System.Text.RegularExpressions;
 using AlarmWorkflow.Shared.Core;
 using AlarmWorkflow.Shared.Diagnostics;
@@ -33,7 +27,7 @@ namespace AlarmWorkflow.Parser.Library
         #region Constants
 
         private static readonly string[] Keywords = new[] { "Gemeinde", "Ortsteil", "Strasse", 
-            "Nr.", "Objekt","Objekthinweis", "Einsatzplan-Nr.", 
+            "Nr.","Objekthinweis", "Objekt", "Einsatzplan-Nr.", 
             "Hinweis", "Meldender", "Alter", "Einsatzart", "Stichwort", "Meldungen",
             "Bemerkung", "Anfahrtsvorschlag von Hauptwache", 
             "Beteiligte Einsatzmittel","Hydrant vor Hausnummer" };
