@@ -15,7 +15,6 @@
 
 using System;
 using System.Globalization;
-using System.Linq;
 using System.Text.RegularExpressions;
 using AlarmWorkflow.Shared.Core;
 using AlarmWorkflow.Shared.Extensibility;
