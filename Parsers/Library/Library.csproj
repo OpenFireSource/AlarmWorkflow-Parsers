@@ -45,6 +45,7 @@
     <Compile Include="IlsBayreuthParser.cs" />
     <Compile Include="IlsIngolstadtParser.cs" />
     <Compile Include="ILSKreuznachParser.cs" />
+    <Compile Include="IlsLimburgParser.cs" />
     <Compile Include="IlstSuedtirolParser.cs" />
     <Compile Include="IlsWuerzburgParser.cs" />
     <Compile Include="ILSAllgaeuParser.cs" />
