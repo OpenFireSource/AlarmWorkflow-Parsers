@@ -27,7 +27,7 @@ namespace AlarmWorkflow.Parser.Library
 
         private readonly string[] _keywords =
         {
-            "Einsatznummer", "Name", "Straße", "Haus-Nr.",
+            "Einsatznummer", "Name", "Rufnummer", "Straße", "Haus-Nr.",
             "Ort", "Objekt","Station", "Schlagw.",
             "Stichwort", "Alarmiert", "Gerät"
         };
@@ -99,7 +99,15 @@ namespace AlarmWorkflow.Parser.Library
                             }
                             break;
                         case CurrentSection.BMitteiler:
-                            operation.Messenger = msg;
+                            switch (prefix)
+                            {
+                                case "NAME":
+                                    operation.Messenger = msg; 
+                                    break;
+                                case "RUFNUMMER":
+                                    operation.Messenger = operation.Messenger.AppendLine(string.Format("Nr.: {0}", msg));
+                                    break;
+                            }
                             break;
                         case CurrentSection.CEinsatzort:
                             {

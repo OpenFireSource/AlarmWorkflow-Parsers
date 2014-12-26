@@ -213,6 +213,15 @@ namespace AlarmWorkflow.Parser.Library
                                             }
 
                                             operation.Einsatzort.City = msg.Remove(0, operation.Einsatzort.ZipCode.Length).Trim();
+
+                                            // The City-text often contains a dash after which the administrative city appears multiple times (like "City A - City A City A").
+                                            // However we can (at least with google maps) omit this information without problems!
+                                            int dashIndex = operation.Einsatzort.City.IndexOf(" - ");
+                                            if (dashIndex != -1)
+                                            {
+                                                // Ignore everything after the dash
+                                                operation.Einsatzort.City = operation.Einsatzort.City.Substring(0, dashIndex).Trim();
+                                            }
                                         }
                                         break;
                                     case "OBJEKT":

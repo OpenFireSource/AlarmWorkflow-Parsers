@@ -14,6 +14,7 @@
 // along with AlarmWorkflow.  If not, see <http://www.gnu.org/licenses/>.
 
 using System;
+using System.Collections.Generic;
 using AlarmWorkflow.Shared.Core;
 using AlarmWorkflow.Shared.Diagnostics;
 using AlarmWorkflow.Shared.Extensibility;
@@ -114,7 +115,8 @@ namespace AlarmWorkflow.Parser.Library
                                         {
                                             string zipCode = ParserUtility.ReadZipCodeFromCity(msg);
                                             operation.Einsatzort.ZipCode = zipCode;
-                                            operation.Einsatzort.City = msg.Replace(zipCode, "").Trim();
+                                            operation.Einsatzort.City = ParserUtility.GetTextBetween(msg, null, "Gemeinde");
+                                            operation.Einsatzort.City = operation.Einsatzort.City.Replace(zipCode, "").Trim();
                                             // The City-text often contains a dash after which the administrative city appears multiple times (like "City A - City A City A").
                                             // However we can (at least with google maps) omit this information without problems!
                                             int dashIndex = operation.Einsatzort.City.IndexOf(" - ");
@@ -168,10 +170,10 @@ namespace AlarmWorkflow.Parser.Library
                                     break;
                                 case "ORT":
                                     {
-                                        operation.Zielort.City = msg;
+                                        operation.Zielort.City = ParserUtility.GetTextBetween(msg, null, "Gemeinde");
                                         // The City-text often contains a dash after which the administrative city appears multiple times (like "City A - City A City A").
                                         // However we can (at least with google maps) omit this information without problems!
-                                        int dashIndex = msg.IndexOf('-');
+                                        int dashIndex = operation.Zielort.City.IndexOf('-');
                                         if (dashIndex != -1)
                                         {
                                             // Ignore everything after the dash
@@ -191,9 +193,13 @@ namespace AlarmWorkflow.Parser.Library
                             break;
                         case CurrentSection.FEinsatzmittel:
                             {
+                                string name, equip;
+                                name = ParserUtility.GetTextBetween(msg, null, ">> gefordert:");
+                                equip = ParserUtility.GetTextBetween(msg, ">> gefordert:");
                                 OperationResource resource = new OperationResource
                                 {
-                                    FullName = msg.Substring(0, msg.IndexOf(">>"))
+                                    FullName = name,
+                                    RequestedEquipment = new List<string>() { equip }
                                 };
                                 operation.Resources.Add(resource);
                             }
@@ -211,6 +217,7 @@ namespace AlarmWorkflow.Parser.Library
                 }
                 catch (Exception ex)
                 {
+                    string l = lines[i];
                     Logger.Instance.LogFormat(LogType.Warning, this, "Error while parsing line '{0}'. The error message was: {1}", i, ex.Message);
                 }
             }
@@ -251,10 +258,10 @@ namespace AlarmWorkflow.Parser.Library
             if (line.Contains("EINSATZMITTEL"))
             {
                 section = CurrentSection.FEinsatzmittel;
-                keywordsOnly = true;
+                keywordsOnly = false;
                 return true;
             }
-            if (line.Contains("******************"))
+            if (line.Contains("******************") || line.Contains("xxxxxxxxxxxxxxxxxx") || line.Contains("XXXXXXXXXXXXXXXXXX"))
             {
                 section = CurrentSection.GFooter;
                 keywordsOnly = false;
