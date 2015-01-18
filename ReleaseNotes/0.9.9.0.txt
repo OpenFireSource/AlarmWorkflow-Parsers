@@ -1,0 +1,11 @@
+AlarmWorkflow - Parser v0.9.8.0 Release Notes
+=============================================
+
+Änderungen seit v0.9.7.0
+------------------------
+
+Bearbeitet
+  * Postleitzahl in ILS Amberg Parser wird nun auch berücksichtigt.
+  
+Hinzugefügt
+...
