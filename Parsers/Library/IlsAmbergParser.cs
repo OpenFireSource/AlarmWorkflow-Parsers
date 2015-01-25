@@ -121,10 +121,18 @@ namespace AlarmWorkflow.Parser.Library
                                         break;
                                     case "ORT":
                                         {
-                                            operation.Einsatzort.City = msg;
+                                            operation.Einsatzort.ZipCode = ParserUtility.ReadZipCodeFromCity(msg);
+                                            if (!string.IsNullOrWhiteSpace(operation.Einsatzort.ZipCode))
+                                            {
+                                                operation.Einsatzort.City = msg.Replace(operation.Einsatzort.ZipCode, "").Trim();
+                                            }
+                                            else
+                                            {
+                                                operation.Einsatzort.City = msg;
+                                            }
                                             // The City-text often contains a dash after which the administrative city appears multiple times (like "City A - City A City A").
                                             // However we can (at least with google maps) omit this information without problems!
-                                            int dashIndex = msg.IndexOf('-');
+                                            int dashIndex = operation.Einsatzort.City.IndexOf('-');
                                             if (dashIndex != -1)
                                             {
                                                 // Ignore everything after the dash
