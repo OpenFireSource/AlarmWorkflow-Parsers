@@ -53,7 +53,7 @@ namespace AlarmWorkflow.Parser.Library
             }
             else
             {
-                value = string.Format("{0}{1}{2}", value, Environment.NewLine, line);    
+                value = string.Format("{0}{1}{2}", value, Environment.NewLine, line);
             }
             return value;
         }
@@ -167,6 +167,11 @@ namespace AlarmWorkflow.Parser.Library
         /// <returns>A valid <see cref="DateTime"/>, either parsed from the message or representing the fallback value.</returns>
         public static DateTime TryGetTimestampFromMessage(string message, DateTime fallback)
         {
+            if (string.IsNullOrWhiteSpace(message))
+            {
+                return fallback;
+            }
+
             DateTime dt = fallback;
             foreach (string token in DateTimeParsingTokens)
             {

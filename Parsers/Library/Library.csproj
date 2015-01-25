@@ -17,7 +17,7 @@
     <DebugSymbols>true</DebugSymbols>
     <DebugType>full</DebugType>
     <Optimize>false</Optimize>
-    <OutputPath>..\..\..\AlarmWorkflowDisp\Build\</OutputPath>
+    <OutputPath>..\..\Build\</OutputPath>
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
@@ -46,6 +46,8 @@
     <Compile Include="IlsIngolstadtParser.cs" />
     <Compile Include="ILSKreuznachParser.cs" />
     <Compile Include="IlsLimburgParser.cs" />
+    <Compile Include="IlsMagdeburgParser.cs" />
+    <Compile Include="ILSNordoberpfalzParser.cs" />
     <Compile Include="IlstSuedtirolParser.cs" />
     <Compile Include="IlsWuerzburgParser.cs" />
     <Compile Include="ILSAllgaeuParser.cs" />
