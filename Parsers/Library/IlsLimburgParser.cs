@@ -15,6 +15,7 @@
 
 using System;
 using AlarmWorkflow.Shared.Core;
+using AlarmWorkflow.Shared.Diagnostics;
 using AlarmWorkflow.Shared.Extensibility;
 
 namespace AlarmWorkflow.Parser.Library
@@ -83,10 +84,10 @@ namespace AlarmWorkflow.Parser.Library
                 }
                 catch (Exception ex)
                 {
-
+                    Logger.Instance.LogFormat(LogType.Warning, this, "Error while parsing line '{0}'. The error message was: {1}", i, ex.Message);
                 }
             }
-            return null;
+            return operation;
         }
 
         #endregion
