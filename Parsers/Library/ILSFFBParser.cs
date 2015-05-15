@@ -69,7 +69,7 @@ namespace AlarmWorkflow.Parser.Library
                 switch (section)
                 {
                     case CurrentSection.BeNr:
-                        string opnummer = ParserUtility.GetTextBetween(line, "ALARM");
+                        string opnummer = ParserUtility.GetTextBetween(line, null, "ALARM");
                         string optime = ParserUtility.GetTextBetween("ALARM");
                         operation.OperationNumber = ParserUtility.GetMessageText(opnummer, keyword);
                         operation.Timestamp = ParserUtility.ReadFaxTimestamp(optime, DateTime.Now);
@@ -80,13 +80,18 @@ namespace AlarmWorkflow.Parser.Library
                     case CurrentSection.DStraße:
                         string msg = ParserUtility.GetMessageText(line, keyword);
                         string street, streetNumber, appendix;
-                        ParserUtility.AnalyzeStreetLine(msg, out street, out streetNumber, out appendix);
+                        ParserUtility.AnalyzeStreetLine(msg.Replace("1.2", ""), out street, out streetNumber, out appendix);
                         operation.CustomData["Einsatzort Zusatz"] = appendix;
-                        operation.Einsatzort.Street = street;
+                        operation.Einsatzort.Street = street.Trim();
                         operation.Einsatzort.StreetNumber = streetNumber;
                         break;
                     case CurrentSection.EOrt:
                         operation.Einsatzort.City = ParserUtility.GetMessageText(line, keyword);
+                        if (operation.Einsatzort.City.Contains(" - "))
+                        {
+                            int i = operation.Einsatzort.City.IndexOf(" - ");
+                            operation.Einsatzort.City = operation.Einsatzort.City.Substring(0, i).Trim();
+                        }
                         break;
                     case CurrentSection.FObjekt:
                         operation.Einsatzort.Property = ParserUtility.GetMessageText(line, keyword);

@@ -62,7 +62,7 @@ namespace AlarmWorkflow.Parser.Library
                 keywordsOnly = true;
                 return true;
             }
-            if (line.Contains("BEMERKUNG"))
+            if (line.Contains("BEMERKUNG") || line.Contains("OBJEKTINFORMATION"))
             {
                 section = CurrentSection.GBemerkung;
                 keywordsOnly = false;
@@ -91,7 +91,7 @@ namespace AlarmWorkflow.Parser.Library
             bool keywordsOnly = true;
 
             InnerSection innerSection = InnerSection.AStraße;
-            for (int i = 0; i < lines.Length; i++)
+            for (int i = 0; i < lines.Length - 5; i++)
             {
                 try
                 {

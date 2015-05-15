@@ -36,16 +36,21 @@
     <Reference Include="AlarmWorkflow.Shared">
       <HintPath>..\..\Build\AlarmWorkflow.Shared.dll</HintPath>
     </Reference>
+    <Reference Include="GeoUtility">
+      <HintPath>..\..\Assemblies\GeoUtility.dll</HintPath>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Data" />
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="IlsAmbergParser.cs" />
+    <Compile Include="IlsBambergForchheimParser.cs" />
     <Compile Include="IlsBayreuthParser.cs" />
     <Compile Include="IlsIngolstadtParser.cs" />
     <Compile Include="ILSKreuznachParser.cs" />
     <Compile Include="IlsLimburgParser.cs" />
+    <Compile Include="IlsLudwigsburgParser.cs" />
     <Compile Include="IlsMagdeburgParser.cs" />
     <Compile Include="ILSNordoberpfalzParser.cs" />
     <Compile Include="IlstSuedtirolParser.cs" />

@@ -25,7 +25,7 @@ namespace AlarmWorkflow.Parser.Library
     {
         #region Constants
 
-        private static readonly string[] Keywords = new[] { "Alarmstichwort", "Einsatzort", "Ort", "Ortsteil", "Objekt" };
+        private static readonly string[] Keywords = new[] { "Alarmstichwort", "Einsatzort", "Ortsteil", "Ort", "Objekt" };
 
         #endregion
 

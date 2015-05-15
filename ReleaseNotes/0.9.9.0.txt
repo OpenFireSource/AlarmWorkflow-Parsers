@@ -1,11 +1,16 @@
-AlarmWorkflow - Parser v0.9.8.0 Release Notes
+AlarmWorkflow - Parser v0.9.9.0 Release Notes
 =============================================
 
-Änderungen seit v0.9.7.0
+Änderungen seit v0.9.8.0
 ------------------------
 
 Bearbeitet
   * Postleitzahl in ILS Amberg Parser wird nun auch berücksichtigt.
-  
+  * ILS Rosenheim: Koordinaten werden ausgelesen
+  * ILS FFB: händisch hinzugefügte Straßen werden richtig erkannt.
+  * ILS Limburg: "Ortsteil"/"Ort" wird korrekt ausgelesen.
 Hinzugefügt
-...
+  * Ils Ludwigsburg
+  * Ils Bamberg Forchheim
+  * Ils Magdeburg
+  * ILS Nordoperpfalz

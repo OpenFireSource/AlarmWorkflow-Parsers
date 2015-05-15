@@ -14,222 +14,24 @@
 // along with AlarmWorkflow.  If not, see <http://www.gnu.org/licenses/>.
 
 using System;
-using System.Globalization;
-using System.Text.RegularExpressions;
 using AlarmWorkflow.Shared.Core;
 using AlarmWorkflow.Shared.Diagnostics;
 using AlarmWorkflow.Shared.Extensibility;
-using GeoUtility.GeoSystem;
 
 namespace AlarmWorkflow.Parser.Library
 {
-    [Export("ILSRosenheimParser", typeof(IParser))]
-    class ILSRosenheimParser : IParser
+    [Export("IlsBambergForchheimParser", typeof(IParser))]
+    sealed class IlsBambergForchheimParser : IParser
     {
-        #region Fields
+        #region Constants
 
-        private readonly string[] _keywords = new[]
+        private static readonly string[] Keywords = new[]
             {
-                "Einsatz-Nr.", "Name", "Straße", "Abschnitt",
-                "Ort", "Kreuzung", "Objekt", "Schlagw.",
-                "Stichwort", "Priorität", "Alarmiert", "gef. Gerät"
+                "Absender","Einsatznummer","Termin","Name","Rufnummer","Straße",
+                "Abschnitt","Ort","Objekt","Kreuzung","Station","Schlagwort.",
+                "Stichwort","Prio.","- Brand","- Rettungsdienst","- Sonstiges",
+                "- THL","- Info","Einsatzmittelname","gef. Geräte"
             };
-
-        #endregion
-
-        #region IParser Members
-
-        Operation IParser.Parse(string[] lines)
-        {
-            Operation operation = new Operation();
-            OperationResource last = new OperationResource();
-
-            lines = Utilities.Trim(lines);
-            CurrentSection section = CurrentSection.AHeader;
-            bool keywordsOnly = true;
-            for (int i = 0; i < lines.Length; i++)
-            {
-                try
-                {
-                    string line = lines[i];
-                    if (line.Length == 0)
-                    {
-                        continue;
-                    }
-                    if (GetSection(line.Trim(), ref section, ref keywordsOnly))
-                    {
-                        if (section == CurrentSection.CEinsatzort)
-                        {
-                            Regex r = new Regex(@"\d+");
-                            int rechts = 0;
-                            int hoch = 0;
-                            var matches = r.Matches(line);
-                            if (matches.Count == 2)
-                            {
-                                rechts = Convert.ToInt32(matches[0].Value);
-                                hoch = Convert.ToInt32(matches[1].Value);
-                                NumberFormatInfo nfi = new NumberFormatInfo();
-                                nfi.NumberDecimalSeparator = ".";
-                                GaussKrueger gauss = new GaussKrueger(rechts,hoch);
-                                Geographic geo = (Geographic) gauss;
-                                operation.Einsatzort.GeoLatitude = geo.Latitude.ToString(nfi);
-                                operation.Einsatzort.GeoLongitude = geo.Longitude.ToString(nfi);
-                            }
-                        }
-
-                        continue;
-                    }
-
-                    string msg = line;
-                    string prefix = "";
-
-                    // Make the keyword check - or not (depends on the section we are in; see above)
-                    string keyword = "";
-                    if (keywordsOnly)
-                    {
-                        if (!ParserUtility.StartsWithKeyword(line, _keywords, out keyword))
-                        {
-                            continue;
-                        }
-
-                        int x = line.IndexOf(':');
-                        if (x == -1)
-                        {
-                            // If there is no colon found (may happen occasionally) then simply remove the length of the keyword from the beginning
-                            prefix = keyword;
-                            msg = line.Remove(0, prefix.Length).Trim();
-                        }
-                        else
-                        {
-                            prefix = line.Substring(0, x);
-                            msg = line.Substring(x + 1).Trim();
-                        }
-                        prefix = prefix.Trim().ToUpperInvariant();
-                    }
-
-                    // Parse each section
-                    switch (section)
-                    {
-                        case CurrentSection.AHeader:
-                            {
-                                switch (prefix)
-                                {
-                                    case "EINSATZ-NR.":
-                                        operation.OperationNumber = msg;
-                                        break;
-                                }
-                            }
-                            break;
-                        case CurrentSection.BMitteiler:
-                            operation.Messenger = msg;
-                            break;
-                        case CurrentSection.CEinsatzort:
-                            {
-                                switch (prefix)
-                                {
-                                    case "STRAßE":
-                                        {
-                                            string street, streetNumber, appendix;
-                                            ParserUtility.AnalyzeStreetLine(msg, out street, out streetNumber, out appendix);
-                                            operation.CustomData["Einsatzort Zusatz"] = appendix;
-                                            operation.Einsatzort.Street = street;
-                                            operation.Einsatzort.StreetNumber = streetNumber;
-                                        }
-                                        break;
-                                    case "ORT":
-                                        {
-                                            operation.Einsatzort.ZipCode = ParserUtility.ReadZipCodeFromCity(msg);
-                                            if (string.IsNullOrWhiteSpace(operation.Einsatzort.ZipCode))
-                                            {
-                                                Logger.Instance.LogFormat(LogType.Warning, this, "Could not find a zip code for city '{0}'. Route planning may fail or yield wrong results!", operation.Einsatzort.City);
-                                            }
-
-                                            operation.Einsatzort.City = msg.Remove(0, operation.Einsatzort.ZipCode.Length).Trim();
-
-                                            // The City-text often contains a dash after which the administrative city appears multiple times (like "City A - City A City A").
-                                            // However we can (at least with google maps) omit this information without problems!
-                                            int dashIndex = operation.Einsatzort.City.IndexOf(" - ");
-                                            if (dashIndex != -1)
-                                            {
-                                                // Ignore everything after the dash
-                                                operation.Einsatzort.City = operation.Einsatzort.City.Substring(0, dashIndex).Trim();
-                                            }
-                                        }
-                                        break;
-                                    case "OBJEKT":
-                                        operation.Einsatzort.Property = msg;
-                                        break;
-                                    case "KREUZUNG":
-                                        operation.Einsatzort.Intersection = msg;
-                                        break;
-                                }
-                            }
-                            break;
-                        case CurrentSection.DEinsatzgrund:
-                            {
-                                switch (prefix)
-                                {
-                                    case "SCHLAGW.":
-                                        operation.Keywords.Keyword = msg;
-                                        break;
-                                    case "STICHWORT":
-                                        operation.Keywords.EmergencyKeyword = msg;
-                                        break;
-                                    case "PRIORITÄT":
-                                        operation.Priority = msg;
-                                        break;
-                                }
-                            }
-                            break;
-                        case CurrentSection.EEinsatzmittel:
-                            {
-                                switch (prefix)
-                                {
-                                    case "NAME":
-                                        last.FullName = msg;
-                                        break;
-                                    case "ALARMIERT":
-                                        msg = ParserUtility.GetTextBetween(msg, null, "AUS");
-                                        last.Timestamp = ParserUtility.TryGetTimestampFromMessage(msg, DateTime.Now).ToString();
-                                        break;
-                                    case "GEF. GERÄT":
-                                        // Only add to requested equipment if there is some text,
-                                        // otherwise the whole vehicle is the requested equipment
-                                        if (!string.IsNullOrWhiteSpace(msg))
-                                        {
-                                            last.RequestedEquipment.Add(msg);
-                                        }
-
-                                        operation.Resources.Add(last);
-                                        last = new OperationResource();
-                                        break;
-                                }
-                            }
-                            break;
-                        case CurrentSection.FBemerkung:
-                            {
-                                // Append with newline at the end in case that the message spans more than one line
-                                operation.Picture += msg + Environment.NewLine;
-                            }
-                            break;
-                        case CurrentSection.GHinweis:
-                            {
-                                // Append with newline at the end in case that the message spans more than one line
-                                operation.Comment = operation.Comment.AppendLine(msg);
-                            }
-                            break;
-                        case CurrentSection.HFooter:
-                            // The footer can be ignored completely.
-                            break;
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Logger.Instance.LogFormat(LogType.Warning, this, "Error while parsing line '{0}'. The error message was: {1}", i, ex.Message);
-                }
-            }
-            return operation;
-        }
 
         #endregion
 
@@ -267,19 +69,216 @@ namespace AlarmWorkflow.Parser.Library
                 keywordsOnly = false;
                 return true;
             }
-            if (line.Contains("EINSATZHINWEIS"))
+            if (line.Contains("ENDE FAX"))
             {
-                section = CurrentSection.GHinweis;
-                keywordsOnly = false;
-                return true;
-            }
-            if (line.Contains("ENDE ALARMFAX"))
-            {
-                section = CurrentSection.HFooter;
+                section = CurrentSection.GFooter;
                 keywordsOnly = false;
                 return true;
             }
             return false;
+        }
+
+        #endregion
+
+        #region IParser Members
+
+        Operation IParser.Parse(string[] lines)
+        {
+            Operation operation = new Operation();
+            OperationResource last = new OperationResource();
+
+            lines = Utilities.Trim(lines);
+
+            CurrentSection section = CurrentSection.AHeader;
+            bool keywordsOnly = true;
+            for (int i = 0; i < lines.Length; i++)
+            {
+                try
+                {
+                    string line = lines[i];
+                    if (line.Length == 0)
+                    {
+                        continue;
+                    }
+
+                    if (GetSection(line.Trim(), ref section, ref keywordsOnly))
+                    {
+                        continue;
+                    }
+                    string msg = line;
+                    string prefix = "";
+
+                    // Make the keyword check - or not (depends on the section we are in; see above)
+                    if (keywordsOnly)
+                    {
+                        string keyword;
+                        if (!ParserUtility.StartsWithKeyword(line, Keywords, out keyword))
+                        {
+                            continue;
+                        }
+
+                        int x = line.IndexOf(':');
+                        if (x == -1)
+                        {
+                            // If there is no colon found (may happen occasionally) then simply remove the length of the keyword from the beginning
+                            prefix = keyword;
+                            msg = line.Remove(0, prefix.Length).Trim();
+                        }
+                        else
+                        {
+                            prefix = line.Substring(0, x);
+                            msg = line.Substring(x + 1).Trim();
+                        }
+
+                        prefix = prefix.Trim().ToUpperInvariant();
+                    }
+
+                    // Parse each section
+                    switch (section)
+                    {
+                        case CurrentSection.AHeader:
+                            {
+                                switch (prefix)
+                                {
+                                    case "ABSENDER":
+                                        operation.CustomData["Absender"] = msg;
+                                        break;
+                                    case "EINSATZNUMMER":
+                                        operation.OperationNumber = msg;
+                                        break;
+                                    case "TERMIN":
+                                        operation.Timestamp = ParserUtility.ReadFaxTimestamp(msg, DateTime.Now);
+                                        break;
+                                }
+                            }
+                            break;
+                        case CurrentSection.BMitteiler:
+                            {
+                                // This switch would not be necessary in this section (there is only "Name")...
+                                switch (prefix)
+                                {
+                                    case "NAME":
+                                        operation.Messenger = msg;
+                                        break;
+                                    case "RUFNUMMER":
+                                        operation.CustomData["Rufnummer"] = msg;
+                                        break;
+                                }
+                            }
+                            break;
+                        case CurrentSection.CEinsatzort:
+                            {
+                                switch (prefix)
+                                {
+                                    case "STRAßE":
+                                        {
+                                            string street, streetNumber, appendix;
+                                            ParserUtility.AnalyzeStreetLine(msg, out street, out streetNumber, out appendix);
+                                            operation.CustomData["Einsatzort Zusatz"] = appendix;
+                                            operation.Einsatzort.Street = street;
+                                            operation.Einsatzort.StreetNumber = streetNumber;
+                                        }
+                                        break;
+                                    case "ABSCHNITT":
+                                        operation.CustomData["Einsatzort Abschnitt"] = msg;
+                                        break;
+                                    case "ORT":
+                                        {
+                                            operation.Einsatzort.ZipCode = ParserUtility.ReadZipCodeFromCity(msg);
+                                            if (string.IsNullOrWhiteSpace(operation.Einsatzort.ZipCode))
+                                            {
+                                                Logger.Instance.LogFormat(LogType.Warning, this, "Could not find a zip code for city '{0}'. Route planning may fail or yield wrong results!", operation.Einsatzort.City);
+                                            }
+
+                                            operation.Einsatzort.City = msg.Remove(0, operation.Einsatzort.ZipCode.Length).Trim();
+
+                                            // The City-text often contains a dash after which the administrative city appears multiple times (like "City A - City A City A").
+                                            // However we can (at least with google maps) omit this information without problems!
+                                            int dashIndex = operation.Einsatzort.City.IndexOf(" - ");
+                                            if (dashIndex != -1)
+                                            {
+                                                // Ignore everything after the dash
+                                                operation.Einsatzort.City = operation.Einsatzort.City.Substring(0, dashIndex).Trim();
+                                            }
+                                        }
+                                        break;
+                                    case "OBJEKT":
+                                        operation.Einsatzort.Property = msg;
+                                        break;
+                                    case "KREUZUNG":
+                                        operation.Einsatzort.Intersection = msg;
+                                        break;
+                                    case "STATION":
+                                        operation.CustomData["Einsatzort Station"] = ParserUtility.GetTextBetween(msg, null, "Objektnummer");
+                                        operation.OperationPlan = ParserUtility.GetMessageText(ParserUtility.GetTextBetween(msg, "Objektnummer"), "");
+
+                                        break;
+                                }
+                            }
+                            break;
+                        case CurrentSection.DEinsatzgrund:
+                            {
+                                switch (prefix)
+                                {
+                                    case "SCHLAGWORT.":
+                                        operation.Keywords.Keyword = msg;
+                                        break;
+                                    case "STICHWORT":
+                                        operation.CustomData["Stichwort"] = msg;
+                                        break;
+                                    case "PRIO.":
+                                        operation.CustomData["Prio."] = msg + " (1 = Notfall / 2 = dringend / 3 = nicht zeitkritisch)";
+                                        break;
+                                    case "- BRAND":
+                                        operation.Keywords.B = msg;
+                                        break;
+                                    case "- RETTUNGSDIENST":
+                                        operation.Keywords.R = msg;
+                                        break;
+                                    case "- SONSTIGES":
+                                        operation.Keywords.S = msg;
+                                        break;
+                                    case "- THL":
+                                        operation.Keywords.T = msg;
+                                        break;
+                                    case "- INFO":
+                                        operation.CustomData["Info"] = msg;
+                                        break;
+                                }
+                            }
+                            break;
+                        case CurrentSection.EEinsatzmittel:
+                            {
+                                switch (prefix)
+                                {
+                                    case "EINSATZMITTELNAME":
+                                        last.FullName = msg;
+                                        break;
+                                    case "GEF. GERÄTE":
+                                        last.RequestedEquipment.Add(msg);
+                                        operation.Resources.Add(last);
+                                        last = new OperationResource();
+                                        break;
+                                }
+                            }
+                            break;
+                        case CurrentSection.FBemerkung:
+                            {
+                                // Append with newline at the end in case that the message spans more than one line
+                                operation.Comment = operation.Comment.AppendLine(msg);
+                            }
+                            break;
+                        case CurrentSection.GFooter:
+                            // The footer can be ignored completely.
+                            break;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Logger.Instance.LogFormat(LogType.Warning, this, "Error while parsing line '{0}'. The error message was: {1}", i, ex.Message);
+                }
+            }
+            return operation;
         }
 
         #endregion
@@ -294,8 +293,11 @@ namespace AlarmWorkflow.Parser.Library
             DEinsatzgrund,
             EEinsatzmittel,
             FBemerkung,
-            GHinweis,
-            HFooter
+
+            /// <summary>
+            /// Footer text. Introduced by "ENDE FAX". Can be ignored completely.
+            /// </summary>
+            GFooter,
         }
 
         #endregion
