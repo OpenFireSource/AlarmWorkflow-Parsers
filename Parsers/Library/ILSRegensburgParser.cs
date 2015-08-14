@@ -14,10 +14,12 @@
 // along with AlarmWorkflow.  If not, see <http://www.gnu.org/licenses/>.
 
 using System;
+using System.Globalization;
 using System.Text.RegularExpressions;
 using AlarmWorkflow.Shared.Core;
 using AlarmWorkflow.Shared.Diagnostics;
 using AlarmWorkflow.Shared.Extensibility;
+using GeoUtility.GeoSystem;
 
 namespace AlarmWorkflow.Parser.Library
 {
@@ -29,7 +31,7 @@ namespace AlarmWorkflow.Parser.Library
         private readonly string[] _keywords = new[]
             {
                 "Einsatznummer", "Name", "Straße", "Abschnitt", "Ort",
-                "Gemeinde", "Kreuzung", "Objekt", "Schlagw.",
+                "Gemeinde", "Kreuzung", "Objekt", "Koordinate", "Schlagw.",
                 "Stichwort", "Prio.", "Alarmiert", "gef. Gerät"
             };
 
@@ -100,7 +102,7 @@ namespace AlarmWorkflow.Parser.Library
                             }
                             break;
                         case CurrentSection.BMitteiler:
-                            operation.Messenger = line.Remove(0, keyword.Length).Trim();
+                            operation.Messenger = msg;
                             break;
                         case CurrentSection.CEinsatzort:
                             {
@@ -117,15 +119,21 @@ namespace AlarmWorkflow.Parser.Library
                                         break;
                                     case "ORT":
                                         {
-                                            Match zip = Regex.Match(msg, @"[0-9]{5}");
-                                            if (zip.Success)
+                                            operation.Einsatzort.ZipCode = ParserUtility.ReadZipCodeFromCity(msg);
+                                            if (string.IsNullOrWhiteSpace(operation.Einsatzort.ZipCode))
                                             {
-                                                operation.Einsatzort.ZipCode = zip.Value;
-                                                operation.Einsatzort.City = msg.Replace(zip.Value, "").Trim();
+                                                Logger.Instance.LogFormat(LogType.Warning, this, "Could not find a zip code for city '{0}'. Route planning may fail or yield wrong results!", operation.Einsatzort.City);
                                             }
-                                            else
+
+                                            operation.Einsatzort.City = msg.Remove(0, operation.Einsatzort.ZipCode.Length).Trim();
+
+                                            // The City-text often contains a dash after which the administrative city appears multiple times (like "City A - City A City A").
+                                            // However we can (at least with google maps) omit this information without problems!
+                                            int dashIndex = operation.Einsatzort.City.IndexOf(" - ");
+                                            if (dashIndex != -1)
                                             {
-                                                operation.Einsatzort.City = msg;
+                                                // Ignore everything after the dash
+                                                operation.Einsatzort.City = operation.Einsatzort.City.Substring(0, dashIndex).Trim();
                                             }
                                             break;
                                         }
@@ -137,8 +145,8 @@ namespace AlarmWorkflow.Parser.Library
                                     case "OBJEKT":
                                         if (msg.Contains("EPN:"))
                                         {
-                                            operation.Einsatzort.Property = ParserUtility.GetTextBetween(line, null, "EPN");
-                                            operation.OperationPlan = ParserUtility.GetTextBetween(line, "EPN");
+                                            operation.Einsatzort.Property = ParserUtility.GetTextBetween(msg, null, "EPN");
+                                            operation.OperationPlan = ParserUtility.GetTextBetween(msg, "EPN");
                                         }
                                         else
                                         {
@@ -147,6 +155,20 @@ namespace AlarmWorkflow.Parser.Library
                                         break;
                                     case "KREUZUNG":
                                         operation.Einsatzort.Intersection = msg;
+                                        break;
+                                    case "KOORDINATE":
+                                        Regex r = new Regex(@"\d+");
+                                        var matches = r.Matches(line);
+                                        if (matches.Count == 2)
+                                        {
+                                            int rechts = Convert.ToInt32(matches[0].Value);
+                                            int hoch = Convert.ToInt32(matches[1].Value);
+                                            NumberFormatInfo nfi = new NumberFormatInfo { NumberDecimalSeparator = "." };
+                                            GaussKrueger gauss = new GaussKrueger(rechts, hoch);
+                                            Geographic geo = (Geographic)gauss;
+                                            operation.Einsatzort.GeoLatitude = geo.Latitude.ToString(nfi);
+                                            operation.Einsatzort.GeoLongitude = geo.Longitude.ToString(nfi);
+                                        }
                                         break;
                                 }
                             }

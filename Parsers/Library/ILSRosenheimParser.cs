@@ -31,7 +31,7 @@ namespace AlarmWorkflow.Parser.Library
         private readonly string[] _keywords = new[]
             {
                 "Einsatz-Nr.", "Name", "Straße", "Abschnitt",
-                "Ort", "Kreuzung", "Objekt", "Schlagw.",
+                "Gemeinde", "Kreuzung", "Objekt", "Schlagw.",
                 "Stichwort", "Priorität", "Alarmiert", "gef. Gerät"
             };
 
@@ -61,15 +61,12 @@ namespace AlarmWorkflow.Parser.Library
                         if (section == CurrentSection.CEinsatzort)
                         {
                             Regex r = new Regex(@"\d+");
-                            int rechts = 0;
-                            int hoch = 0;
                             var matches = r.Matches(line);
                             if (matches.Count == 2)
                             {
-                                rechts = Convert.ToInt32(matches[0].Value);
-                                hoch = Convert.ToInt32(matches[1].Value);
-                                NumberFormatInfo nfi = new NumberFormatInfo();
-                                nfi.NumberDecimalSeparator = ".";
+                                int rechts = Convert.ToInt32(matches[0].Value);
+                                int hoch = Convert.ToInt32(matches[1].Value);
+                                NumberFormatInfo nfi = new NumberFormatInfo {NumberDecimalSeparator = "."};
                                 GaussKrueger gauss = new GaussKrueger(rechts,hoch);
                                 Geographic geo = (Geographic) gauss;
                                 operation.Einsatzort.GeoLatitude = geo.Latitude.ToString(nfi);
@@ -136,7 +133,7 @@ namespace AlarmWorkflow.Parser.Library
                                             operation.Einsatzort.StreetNumber = streetNumber;
                                         }
                                         break;
-                                    case "ORT":
+                                    case "GEMEINDE":
                                         {
                                             operation.Einsatzort.ZipCode = ParserUtility.ReadZipCodeFromCity(msg);
                                             if (string.IsNullOrWhiteSpace(operation.Einsatzort.ZipCode))
@@ -273,7 +270,7 @@ namespace AlarmWorkflow.Parser.Library
                 keywordsOnly = false;
                 return true;
             }
-            if (line.Contains("ENDE ALARMFAX"))
+            if (line.Contains("ENDE ALARMDEPESCHE"))
             {
                 section = CurrentSection.HFooter;
                 keywordsOnly = false;

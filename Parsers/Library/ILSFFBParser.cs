@@ -70,7 +70,7 @@ namespace AlarmWorkflow.Parser.Library
                 {
                     case CurrentSection.BeNr:
                         string opnummer = ParserUtility.GetTextBetween(line, null, "ALARM");
-                        string optime = ParserUtility.GetTextBetween("ALARM");
+                        string optime = ParserUtility.GetTextBetween(line,"ALARM");
                         operation.OperationNumber = ParserUtility.GetMessageText(opnummer, keyword);
                         operation.Timestamp = ParserUtility.ReadFaxTimestamp(optime, DateTime.Now);
                         break;
