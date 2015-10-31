@@ -82,6 +82,7 @@
     <Compile Include="LstMansfeldSuedharz.cs" />
     <Compile Include="LSTKleveParser.cs" />
     <Compile Include="FEZMuenchenLandParser.cs" />
+    <Compile Include="LstTirolParser.cs" />
     <Compile Include="NoParser.cs" />
     <Compile Include="ParserUtility.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

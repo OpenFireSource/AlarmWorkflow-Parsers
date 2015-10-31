@@ -66,9 +66,9 @@ namespace AlarmWorkflow.Parser.Library
                             {
                                 int rechts = Convert.ToInt32(matches[0].Value);
                                 int hoch = Convert.ToInt32(matches[1].Value);
-                                NumberFormatInfo nfi = new NumberFormatInfo {NumberDecimalSeparator = "."};
-                                GaussKrueger gauss = new GaussKrueger(rechts,hoch);
-                                Geographic geo = (Geographic) gauss;
+                                NumberFormatInfo nfi = new NumberFormatInfo { NumberDecimalSeparator = "." };
+                                GaussKrueger gauss = new GaussKrueger(rechts, hoch);
+                                Geographic geo = (Geographic)gauss;
                                 operation.Einsatzort.GeoLatitude = geo.Latitude.ToString(nfi);
                                 operation.Einsatzort.GeoLongitude = geo.Longitude.ToString(nfi);
                             }
@@ -292,7 +292,8 @@ namespace AlarmWorkflow.Parser.Library
             EEinsatzmittel,
             FBemerkung,
             GHinweis,
-            HFooter
+            HFooter,
+
         }
 
         #endregion

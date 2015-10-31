@@ -14,9 +14,11 @@
 // along with AlarmWorkflow.  If not, see <http://www.gnu.org/licenses/>.
 
 using System;
+using System.Globalization;
 using AlarmWorkflow.Shared.Core;
 using AlarmWorkflow.Shared.Diagnostics;
 using AlarmWorkflow.Shared.Extensibility;
+using GeoUtility.GeoSystem;
 
 namespace AlarmWorkflow.Parser.Library
 {
@@ -28,7 +30,7 @@ namespace AlarmWorkflow.Parser.Library
         private static readonly string[] Keywords = new[] { 
             "ABSENDER", "FAX", "TERMIN", "EINSATZNUMMER", "NAME",  
             "ABSCHNITT", "STRAßE", "ORT", "OBJEKT","KREUZUNG", "STATION", "SCHLAGW", "STICHWORT", "PRIO", 
-            "EINSATZMITTELNAME", "GEF. GERÄT" };
+            "EINSATZMITTELNAME", "GEF. GERÄT", "RECHTSWERT","HOCHWERT" };
 
         #endregion
 
@@ -65,10 +67,15 @@ namespace AlarmWorkflow.Parser.Library
                 section = CurrentSection.GBemerkung;
                 keywordsOnly = false;
                 return true;
+            } if (line.Contains("EINSATZKOORDINATEN"))
+            {
+                section = CurrentSection.HKoordinaten;
+                keywordsOnly = true;
+                return true;
             }
             if (line.Contains("ENDE FAX"))
             {
-                section = CurrentSection.HFooter;
+                section = CurrentSection.IFooter;
                 keywordsOnly = false;
                 return true;
             }
@@ -84,7 +91,7 @@ namespace AlarmWorkflow.Parser.Library
             OperationResource last = new OperationResource();
 
             lines = Utilities.Trim(lines);
-
+            int rechts = 0, hoch = 0;
             bool keywordsOnly = true;
             CurrentSection section = CurrentSection.AHeader;
             for (int i = 0; i < lines.Length; i++)
@@ -266,7 +273,20 @@ namespace AlarmWorkflow.Parser.Library
                                 operation.Comment = operation.Comment.AppendLine(msg);
                             }
                             break;
-                        case CurrentSection.HFooter:
+                        case CurrentSection.HKoordinaten:
+                            {
+                                switch (prefix)
+                                {
+                                    case "RECHTSWERT":
+                                        rechts = int.Parse(msg);
+                                        break;
+                                    case "HOCHWERT":
+                                        hoch = int.Parse(msg);
+                                        break;
+                                }
+                            }
+                            break;
+                        case CurrentSection.IFooter:
                             // The footer can be ignored completely.
                             break;
                     }
@@ -276,6 +296,11 @@ namespace AlarmWorkflow.Parser.Library
                     Logger.Instance.LogFormat(LogType.Warning, this, "Error while parsing line '{0}'. The error message was: {1}", i, ex.Message);
                 }
             }
+            NumberFormatInfo nfi = new NumberFormatInfo { NumberDecimalSeparator = "." };
+            GaussKrueger gauss = new GaussKrueger(rechts, hoch);
+            Geographic geo = (Geographic)gauss;
+            operation.Einsatzort.GeoLatitude = geo.Latitude.ToString(nfi);
+            operation.Einsatzort.GeoLongitude = geo.Longitude.ToString(nfi);
             return operation;
         }
 
@@ -291,10 +316,11 @@ namespace AlarmWorkflow.Parser.Library
             EEinsatzgrund,
             FEinsatzmittel,
             GBemerkung,
+            HKoordinaten,
             /// <summary>
             /// Footer text. Introduced by "ENDE FAX". Can be ignored completely.
             /// </summary>
-            HFooter,
+            IFooter,
         }
 
         #endregion

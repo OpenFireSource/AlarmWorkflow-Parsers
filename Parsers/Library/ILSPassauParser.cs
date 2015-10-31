@@ -14,10 +14,12 @@
 // along with AlarmWorkflow.  If not, see <http://www.gnu.org/licenses/>.
 
 using System;
+using System.Globalization;
 using System.Text.RegularExpressions;
 using AlarmWorkflow.Shared.Core;
 using AlarmWorkflow.Shared.Diagnostics;
 using AlarmWorkflow.Shared.Extensibility;
+using GeoUtility.GeoSystem;
 
 namespace AlarmWorkflow.Parser.Library
 {
@@ -27,7 +29,7 @@ namespace AlarmWorkflow.Parser.Library
 
         #region Constants
 
-        private static readonly string[] Keywords = new[] { "", "EINSATZNUMMER", "ABSENDER", "NAME", "STRAßE", "ORT", "OBJEKT", "KREUZUNG", "STICHWORT B", "STICHWORT SO", "PRIO.", "SCHLAGW", "EINSATZMITTELNAME" };
+        private static readonly string[] Keywords = new[] { "", "KOORDINATE", "EINSATZNUMMER", "ABSENDER", "NAME", "STRAßE", "ORT", "OBJEKT", "KREUZUNG", "STICHWORT B", "STICHWORT SO", "PRIO.", "SCHLAGW", "EINSATZMITTELNAME" };
 
         #endregion
 
@@ -263,7 +265,20 @@ namespace AlarmWorkflow.Parser.Library
                                     case "STATION":
                                         operation.CustomData.Add("Einsatzort Station:", msg);
                                         break;
-
+                                    case "KOORDINATE":
+                                        Regex r = new Regex(@"\d+");
+                                        var matches = r.Matches(line);
+                                        if (matches.Count == 2)
+                                        {
+                                            int rechts = Convert.ToInt32(matches[0].Value);
+                                            int hoch = Convert.ToInt32(matches[1].Value);
+                                            NumberFormatInfo nfi = new NumberFormatInfo { NumberDecimalSeparator = "." };
+                                            GaussKrueger gauss = new GaussKrueger(rechts, hoch);
+                                            Geographic geo = (Geographic)gauss;
+                                            operation.Einsatzort.GeoLatitude = geo.Latitude.ToString(nfi);
+                                            operation.Einsatzort.GeoLongitude = geo.Longitude.ToString(nfi);
+                                        }
+                                        break;
                                     default:
                                         switch (innerSection)
                                         {
