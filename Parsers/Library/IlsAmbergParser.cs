@@ -14,9 +14,11 @@
 // along with AlarmWorkflow.  If not, see <http://www.gnu.org/licenses/>.
 
 using System;
+using System.Globalization;
 using AlarmWorkflow.Shared.Core;
 using AlarmWorkflow.Shared.Diagnostics;
 using AlarmWorkflow.Shared.Extensibility;
+using GeoUtility.GeoSystem;
 
 namespace AlarmWorkflow.Parser.Library
 {
@@ -29,7 +31,7 @@ namespace AlarmWorkflow.Parser.Library
         {
             "Einsatznummer", "Name", "Rufnummer", "Straße", "Haus-Nr.",
             "Ort", "Objekt","Station", "Schlagw.",
-            "Stichwort", "Alarmiert", "Gerät"
+            "Stichwort", "Alarmiert", "Gerät", "X","Y"
         };
 
         #endregion
@@ -44,6 +46,9 @@ namespace AlarmWorkflow.Parser.Library
             lines = Utilities.Trim(lines);
             CurrentSection section = CurrentSection.AHeader;
             bool keywordsOnly = true;
+            double geoX = 0, geoY = 0;
+            NumberFormatInfo nfi = new NumberFormatInfo();
+            nfi.CurrencyDecimalSeparator = ".";
             for (int i = 0; i < lines.Length; i++)
             {
                 try
@@ -98,11 +103,26 @@ namespace AlarmWorkflow.Parser.Library
                                 }
                             }
                             break;
+                        case CurrentSection.Koordinaten:
+                            switch (prefix)
+                            {
+                                case "X":
+                                    geoX = double.Parse(msg, nfi);
+                                    break;
+                                case "Y":
+                                    geoY = double.Parse(msg, nfi);
+                                    GaussKrueger gauss = new GaussKrueger(geoX, geoY);
+                                    Geographic geo = (Geographic)gauss;
+                                    operation.Einsatzort.GeoLatitude = geo.Latitude.ToString(nfi);
+                                    operation.Einsatzort.GeoLongitude = geo.Longitude.ToString(nfi);
+                                    break;
+                            }
+                            break;
                         case CurrentSection.BMitteiler:
                             switch (prefix)
                             {
                                 case "NAME":
-                                    operation.Messenger = msg; 
+                                    operation.Messenger = msg;
                                     break;
                                 case "RUFNUMMER":
                                     operation.Messenger = operation.Messenger.AppendLine(string.Format("Nr.: {0}", msg));
@@ -246,6 +266,12 @@ namespace AlarmWorkflow.Parser.Library
                 keywordsOnly = false;
                 return true;
             }
+            if (line.Contains("KOORDINATEN"))
+            {
+                section = CurrentSection.Koordinaten;
+                keywordsOnly = true;
+                return true;
+            }
             return false;
         }
 
@@ -257,6 +283,7 @@ namespace AlarmWorkflow.Parser.Library
         {
             AHeader,
             BMitteiler,
+            Koordinaten,
             CEinsatzort,
             DEinsatzgrund,
             EBemerkungen,
