@@ -11,6 +11,7 @@ Bearbeitet
   * ILS Limburg: "Ortsteil"/"Ort" wird korrekt ausgelesen.
   * ILS Traunstein: Koordinaten werden ausgelesen
   * ILS Passau: Koordinaten werden ausgelesen
+  * ILS Augsburg: Koordinaten werden ausgelesen
 Hinzugefügt
   * Ils Ludwigsburg
   * Ils Bamberg Forchheim
