@@ -47,8 +47,7 @@ namespace AlarmWorkflow.Parser.Library
             CurrentSection section = CurrentSection.AHeader;
             bool keywordsOnly = true;
             double geoX = 0, geoY = 0;
-            NumberFormatInfo nfi = new NumberFormatInfo();
-            nfi.CurrencyDecimalSeparator = ".";
+            NumberFormatInfo nfi = new NumberFormatInfo {NumberDecimalSeparator = "."};
             for (int i = 0; i < lines.Length; i++)
             {
                 try
@@ -113,8 +112,8 @@ namespace AlarmWorkflow.Parser.Library
                                     geoY = double.Parse(msg, nfi);
                                     GaussKrueger gauss = new GaussKrueger(geoX, geoY);
                                     Geographic geo = (Geographic)gauss;
-                                    operation.Einsatzort.GeoLatitude = geo.Latitude.ToString(nfi);
-                                    operation.Einsatzort.GeoLongitude = geo.Longitude.ToString(nfi);
+                                    operation.Einsatzort.GeoLatitude = geo.Latitude;
+                                    operation.Einsatzort.GeoLongitude = geo.Longitude;
                                     break;
                             }
                             break;

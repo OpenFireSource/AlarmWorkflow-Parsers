@@ -213,8 +213,8 @@ namespace AlarmWorkflow.Parser.Library
                                             double hoch = Convert.ToDouble(matches[1].Value, nfi);
                                             GaussKrueger gauss = new GaussKrueger(rechts, hoch);
                                             Geographic geo = (Geographic)gauss;
-                                            operation.Einsatzort.GeoLatitude = geo.Latitude.ToString(nfi);
-                                            operation.Einsatzort.GeoLongitude = geo.Longitude.ToString(nfi);
+                                            operation.Einsatzort.GeoLatitude = geo.Latitude;
+                                            operation.Einsatzort.GeoLongitude = geo.Longitude;
                                         }
                                         break;
                                     default:

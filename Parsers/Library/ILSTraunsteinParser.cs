@@ -296,11 +296,10 @@ namespace AlarmWorkflow.Parser.Library
                     Logger.Instance.LogFormat(LogType.Warning, this, "Error while parsing line '{0}'. The error message was: {1}", i, ex.Message);
                 }
             }
-            NumberFormatInfo nfi = new NumberFormatInfo { NumberDecimalSeparator = "." };
             GaussKrueger gauss = new GaussKrueger(rechts, hoch);
             Geographic geo = (Geographic)gauss;
-            operation.Einsatzort.GeoLatitude = geo.Latitude.ToString(nfi);
-            operation.Einsatzort.GeoLongitude = geo.Longitude.ToString(nfi);
+            operation.Einsatzort.GeoLatitude = geo.Latitude;
+            operation.Einsatzort.GeoLongitude = geo.Longitude;
             return operation;
         }
 
