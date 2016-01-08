@@ -111,7 +111,8 @@ namespace AlarmWorkflow.Parser.Library
                 try
                 {
                     string line = lines[i];
-                    if (line.Length == 0)
+                    if (line.Length == 0
+                        || line.StartsWith("------- FAX"))
                     {
                         continue;
                     }
