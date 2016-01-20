@@ -89,7 +89,7 @@ namespace AlarmWorkflow.Parser.Library
                                 case "EINSATZORT":
                                     operation.Einsatzort.Location = msg;
                                     break;
-                                case "Objekt":
+                                case "OBJEKT":
                                     operation.Einsatzort.Property = msg;
                                     break;
                                 case "ORT":

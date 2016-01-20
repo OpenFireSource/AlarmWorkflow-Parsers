@@ -15,9 +15,12 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
+using System.Text.RegularExpressions;
 using AlarmWorkflow.Shared.Core;
 using AlarmWorkflow.Shared.Diagnostics;
 using AlarmWorkflow.Shared.Extensibility;
+using GeoUtility.GeoSystem;
 
 namespace AlarmWorkflow.Parser.Library
 {
@@ -28,8 +31,8 @@ namespace AlarmWorkflow.Parser.Library
 
         private readonly string[] _keywords = new[]
             {
-                "Absender","Objekt","Station", "Straße", "Abschnitt",
-                "Kreuzung", "Ort", "Plannummer","Meldebild", "Priorität"
+                "Einsatz-Nr","Objekt","Station", "Strasse", "Abschnitt","Planumer",
+                "Kreuzung", "Ort", "Koordinate","Schlagwort","Stichwort", "Priorität", "Prioritat"
             };
 
         #endregion
@@ -102,7 +105,7 @@ namespace AlarmWorkflow.Parser.Library
                             {
                                 switch (prefix)
                                 {
-                                    case "STRAßE":
+                                    case "STRASSE":
                                         {
                                             string street, streetNumber, appendix;
                                             ParserUtility.AnalyzeStreetLine(msg, out street, out streetNumber, out appendix);
@@ -115,8 +118,7 @@ namespace AlarmWorkflow.Parser.Library
                                         {
                                             string zipCode = ParserUtility.ReadZipCodeFromCity(msg);
                                             operation.Einsatzort.ZipCode = zipCode;
-                                            operation.Einsatzort.City = ParserUtility.GetTextBetween(msg, null, "Gemeinde");
-                                            operation.Einsatzort.City = operation.Einsatzort.City.Replace(zipCode, "").Trim();
+                                            operation.Einsatzort.City = msg.Replace(zipCode, "").Trim();
                                             // The City-text often contains a dash after which the administrative city appears multiple times (like "City A - City A City A").
                                             // However we can (at least with google maps) omit this information without problems!
                                             int dashIndex = operation.Einsatzort.City.IndexOf(" - ");
@@ -125,7 +127,6 @@ namespace AlarmWorkflow.Parser.Library
                                                 // Ignore everything after the dash
                                                 operation.Einsatzort.City = operation.Einsatzort.City.Substring(0, dashIndex);
                                             }
-                                            operation.CustomData["Einsatzort Gemeinde"] = ParserUtility.GetTextBetween(msg, "Gemeinde:");
                                         }
                                         break;
                                     case "OBJEKT":
@@ -137,8 +138,22 @@ namespace AlarmWorkflow.Parser.Library
                                     case "KREUZUNG":
                                         operation.Einsatzort.Intersection = msg;
                                         break;
-                                    case "PLANNUMMER":
+                                    case "PLANUMER":
                                         operation.OperationPlan = msg;
+                                        break;
+                                    case "KOORDINATE":
+                                        Regex r = new Regex(@"(\d+\.\d+)");
+                                        var matches = r.Matches(line);
+                                        if (matches.Count == 2)
+                                        {
+                                            NumberFormatInfo nfi = new NumberFormatInfo { NumberDecimalSeparator = "." };
+                                            double rechts = Convert.ToDouble(matches[0].Value, nfi);
+                                            double hoch = Convert.ToDouble(matches[1].Value, nfi);
+                                            GaussKrueger gauss = new GaussKrueger(rechts, hoch);
+                                            Geographic geo = (Geographic)gauss;
+                                            operation.Einsatzort.GeoLatitude = geo.Latitude;
+                                            operation.Einsatzort.GeoLongitude = geo.Longitude;
+                                        }
                                         break;
                                 }
                             }
@@ -147,9 +162,13 @@ namespace AlarmWorkflow.Parser.Library
                             {
                                 switch (prefix)
                                 {
-                                    case "MELDEBILD":
+                                    case "SCHLAGWORT":
                                         operation.Keywords.Keyword = msg;
                                         break;
+                                    case "STICHWORT":
+                                        operation.Keywords.EmergencyKeyword = msg;
+                                        break;
+                                    case "PRIORITAT":
                                     case "PRIORITÄT":
                                         operation.Priority = msg;
                                         break;
@@ -159,7 +178,7 @@ namespace AlarmWorkflow.Parser.Library
                         case CurrentSection.DZielort:
                             switch (prefix)
                             {
-                                case "STRAßE":
+                                case "STRASSE":
                                     {
                                         string street, streetNumber, appendix;
                                         ParserUtility.AnalyzeStreetLine(msg, out street, out streetNumber, out appendix);
@@ -170,17 +189,14 @@ namespace AlarmWorkflow.Parser.Library
                                     break;
                                 case "ORT":
                                     {
-                                        operation.Zielort.City = ParserUtility.GetTextBetween(msg, null, "Gemeinde");
                                         // The City-text often contains a dash after which the administrative city appears multiple times (like "City A - City A City A").
                                         // However we can (at least with google maps) omit this information without problems!
-                                        int dashIndex = operation.Zielort.City.IndexOf('-');
+                                        int dashIndex = msg.IndexOf('-');
                                         if (dashIndex != -1)
                                         {
                                             // Ignore everything after the dash
                                             operation.Zielort.City = operation.Einsatzort.City.Substring(0, dashIndex);
                                         }
-                                        operation.CustomData["Zielort Gemeinde"] = ParserUtility.GetTextBetween(msg, "Gemeinde:");
-
                                     }
                                     break;
                                 case "OBJEKT":

@@ -82,7 +82,7 @@ namespace AlarmWorkflow.Parser.Library
                 keywordsOnly = false;
                 return true;
             }
-            if (line.Contains("ENDE FAX"))
+            if (line.Contains("- FAX -"))
             {
                 section = CurrentSection.HFooter;
                 keywordsOnly = false;

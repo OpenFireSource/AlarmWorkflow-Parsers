@@ -28,7 +28,7 @@ namespace AlarmWorkflow.Parser.Library
 
         private static readonly string[] Keywords = new[] { 
             "ABSENDER", "FAX", "EINSATZNUMMER", "NAME", "STRAßE", "ORT", "OBJEKT", 
-            "STATION", "SCHLAGW", "STICHWORT", "PRIO","STICHWORT B","STICHWORT T","STICHWORT S","STICHWORT R"
+            "STATION", "SCHLAGW", "STICHWORT", "PRIO","STICHWORT B","STICHWORT T","STICHWORT S","STICHWORT R", "NAME","ALARMIERT","GEF. GERÄT"
         };
 
         #endregion
@@ -139,6 +139,7 @@ namespace AlarmWorkflow.Parser.Library
 
             lines = Utilities.Trim(lines);
 
+            OperationResource last = new OperationResource();
             CurrentSection section = CurrentSection.AHeader;
             bool keywordsOnly = true;
 
@@ -309,18 +310,28 @@ namespace AlarmWorkflow.Parser.Library
                             }
                             break;
                         case CurrentSection.FEinsatzmittel:
-                            {
-                                if (line.StartsWith("NAME", StringComparison.CurrentCultureIgnoreCase))
+                        {
+                            switch (prefix)
                                 {
-
+                                    case "NAME": last.FullName = msg.Trim();
+                                        break;
+                                    case "GEF. GERÄT":  
+                                        // Only add to requested equipment if there is some text,
+                                        // otherwise the whole vehicle is the requested equipment
+                                        if (!string.IsNullOrWhiteSpace(msg))
+                                        {
+                                            last.RequestedEquipment.Add(msg);
+                                        }
+                                        break;
+                                    case "ALARMIERT":
+                                        last.Timestamp = ParserUtility.TryGetTimestampFromMessage(msg, DateTime.Now).ToString();
+                                        // This line will end the construction of this resource. Add it to the list and go to the next.
+                                        operation.Resources.Add(last);
+                                        last = new OperationResource();
+                                        break;
+                                        
                                 }
-                                else
-                                {
-                                    String name = line.Substring(0, line.IndexOf(":", StringComparison.Ordinal)).Trim();
-                                    String timestamp = line.Substring(line.IndexOf(":", StringComparison.Ordinal)).Trim(':').Trim();
-                                    operation.Resources.Add(new OperationResource() { FullName = name, Timestamp = timestamp });
-                                }
-                            }
+                        }
                             break;
                         case CurrentSection.GBemerkung:
                             {
