@@ -87,6 +87,10 @@ namespace AlarmWorkflow.Parser.Library
                         break;
                     case CurrentSection.CMitteiler:
                         operation.Messenger = ParserUtility.GetMessageText(line, keyword);
+                        if (operation.Messenger.Contains("Hauptmelder"))
+                        {
+                            operation.Picture = "Feuermelder";
+                        }
                         break;
                     case CurrentSection.DEinsatzort:
                         operation.Einsatzort.Location = ParserUtility.GetMessageText(line, keyword);
@@ -115,7 +119,10 @@ namespace AlarmWorkflow.Parser.Library
                         operation.OperationPlan = ParserUtility.GetMessageText(line, keyword);
                         break;
                     case CurrentSection.LMeldebild:
-                        operation.Picture = ParserUtility.GetMessageText(line, keyword);
+                        if (operation.Picture != "Feuermelder")
+                        {
+                            operation.Picture = ParserUtility.GetMessageText(line, keyword);
+                        }
                         break;
                     case CurrentSection.MHinweis:
                         operation.Comment = ParserUtility.GetMessageText(line, keyword);
