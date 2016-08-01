@@ -5,4 +5,4 @@
 ------------------------
 
 Bearbeitet
-  * ILS Erding: Koordinaten werden ausgelesen
+  * ILS Erding & FFB: Koordinaten werden ausgelesen
