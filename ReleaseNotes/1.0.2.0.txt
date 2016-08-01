@@ -1,0 +1,8 @@
+﻿AlarmWorkflow - Parser v1.0.2.0 Release Notes
+=============================================
+
+Änderungen seit v0.9.9.0
+------------------------
+
+Bearbeitet
+  * ILS Erding: Koordinaten werden ausgelesen
