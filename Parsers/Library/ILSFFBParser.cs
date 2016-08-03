@@ -28,7 +28,7 @@ namespace AlarmWorkflow.Parser.Library
 
         private readonly string[] _keywords = new[]
                                                         {
-                                                            "ALARM","E-Nr","EINSATZORT","STRAßE",
+                                                            "ALARM","E-Nr","EINSATZORT","STRAßE","KOORDINATEN",
                                                             "ORTSTEIL/ORT","OBJEKT","EINSATZPLAN","MELDEBILD",
                                                             "EINSATZSTICHWORT","HINWEIS","EINSATZMITTEL","(ALARMSCHREIBEN ENDE)"
                                                         };
