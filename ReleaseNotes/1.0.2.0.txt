@@ -4,5 +4,10 @@
 Änderungen seit v0.9.9.0
 ------------------------
 
+Hinzugefügt:
+  * ILS Hochfranken
+
 Bearbeitet
   * ILS Erding & FFB: Koordinaten werden ausgelesen
+  * ILS Straubing optimiert
+  * LFS Offenbach: Einsatzmittel werden ausgelesen

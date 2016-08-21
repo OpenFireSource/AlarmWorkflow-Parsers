@@ -19,6 +19,7 @@ using AlarmWorkflow.Shared.Extensibility;
 using System.Text.RegularExpressions;
 using System.Globalization;
 
+
 namespace AlarmWorkflow.Parser.Library
 {
     [Export("LFSOffenbachParser", typeof(IParser))]
@@ -26,15 +27,15 @@ namespace AlarmWorkflow.Parser.Library
     {
         #region Static
 
-        private static readonly Regex _coordinatenRegex = new Regex(@"POINT\((\d+.\d+) (\d+.\d+)\)");
+        private static readonly Regex _coordinatenRegex = new Regex(@"POINT \((\d+.\d+) (\d+.\d+)\)");
 
         #endregion
 
         #region Fields
 
         private readonly string[] _keywords = new string[] {
-            "Einsatznummer","Objekt","Ort","Ortsteil","Straße","Koordinaten",
-            "Bemerkung","Meldebild","Einsatzanlass","Zielort", "Zeiten"
+            "Einsatznummer","Objekt","Ort:","Ortsteil","Straße","Koordinaten",
+            "Bemerkung","Meldebild","Einsatzanlass","Zielort", "Zeiten", "EM"
             };
 
         #endregion
@@ -60,7 +61,7 @@ namespace AlarmWorkflow.Parser.Library
                                 operation.OperationNumber = msg;
                                 break;
                             }
-                        case "ORT":
+                        case "ORT:":
                             {
                                 operation.Einsatzort.City = msg;
                                 break;
@@ -109,6 +110,15 @@ namespace AlarmWorkflow.Parser.Library
                             }
                         case "ZEITEN":
                             {
+                                break;
+                            }
+                        case "EM":
+                            {
+                                Match alarm = Regex.Match(line, @"[1-9]{1,2}-[1-9]{2}-[1-9]{1}");
+                                if (alarm.Success)
+                                {
+                                    operation.Resources.Add(new OperationResource { FullName = alarm.Groups[0].Value });
+                                }
                                 break;
                             }
                     }
