@@ -15,8 +15,10 @@
 
 using System;
 using System.Linq;
+using System.Text.RegularExpressions;
 using AlarmWorkflow.Shared.Core;
 using AlarmWorkflow.Shared.Extensibility;
+using GeoUtility.GeoSystem;
 
 namespace AlarmWorkflow.Parser.Library
 {
@@ -29,7 +31,7 @@ namespace AlarmWorkflow.Parser.Library
         {
             "EINSATZNR","MITTEILER","EINSATZORT","STRAßE","ABSCHNITT","KREUZUNG",
             "ORTSTEIL/ORT","OBJEKT","EINSATZPLAN","MELDEBILD"
-            ,"HINWEIS","GEFORDERTE EINSATZMITTEL","(ALARMSCHREIBEN ENDE)"
+            ,"HINWEIS","GEFORDERTE EINSATZMITTEL","(ALARMSCHREIBEN ENDE)","KOORDINATEN"
         };
 
         #endregion
@@ -52,6 +54,7 @@ namespace AlarmWorkflow.Parser.Library
                         case "MITTEILER": { section = CurrentSection.CMitteiler; break; }
                         case "EINSATZORT": { section = CurrentSection.DEinsatzort; break; }
                         case "STRAßE": { section = CurrentSection.EStraße; break; }
+                        case "KOORDINATEN": { section = CurrentSection.Koordinaten; break; }
                         case "ABSCHNITT": { section = CurrentSection.FAbschnitt; break; }
                         case "KREUZUNG": { section = CurrentSection.GKreuzung; break; }
                         case "ORTSTEIL/ORT": { section = CurrentSection.HOrt; break; }
@@ -141,6 +144,17 @@ namespace AlarmWorkflow.Parser.Library
                             operation.Resources.Add(new OperationResource() { FullName = line });
                         }
                         break;
+                    case FezMuenchenLandParser.CurrentSection.Koordinaten:
+                        MatchCollection matchCollection = new Regex("[\d.]+").Matches(ParserUtility.GetMessageText(line, keyword).Replace("GK4", "").Replace(",", "."));
+                        if (matchCollection.Count == 2)
+                        {
+                            GaussKrueger gauss = new GaussKrueger(Convert.ToDouble(matchCollection[0].Value), Convert.ToDouble(matchCollection[1].Value));
+                            Geographic geo = (Geographic)gauss;
+                            operation.Einsatzort.GeoLatitude = geo.Latitude;
+                            operation.Einsatzort.GeoLongitude = geo.Longitude;
+                            break;
+                        }
+                        break;
 
                     case CurrentSection.OEnde:
                         break;
@@ -170,7 +184,8 @@ namespace AlarmWorkflow.Parser.Library
             LMeldebild,
             MHinweis,
             NEinsatzmittel,
-            OEnde
+            OEnde,
+            Koordinaten
         }
 
         #endregion
