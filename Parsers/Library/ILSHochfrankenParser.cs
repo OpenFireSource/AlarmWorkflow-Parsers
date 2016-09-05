@@ -1,4 +1,4 @@
-// This file is part of AlarmWorkflow.
+Ôªø// This file is part of AlarmWorkflow.
 // 
 // AlarmWorkflow is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -19,17 +19,19 @@ using System.Text.RegularExpressions;
 using AlarmWorkflow.Shared.Core;
 using AlarmWorkflow.Shared.Diagnostics;
 using AlarmWorkflow.Shared.Extensibility;
-using GeoUtility.GeoSystem;
 
 namespace AlarmWorkflow.Parser.Library
 {
-    [Export("ILSPassauParser", typeof(IParser))]
-    class ILSPassauParser : IParser
+    [Export(nameof(ILSHochfrankenParser), typeof(IParser))]
+    sealed class ILSHochfrankenParser : IParser
     {
-
         #region Constants
 
-        private static readonly string[] Keywords = new[] { "", "KOORDINATE", "EINSATZNUMMER", "ABSENDER", "NAME", "STRAﬂE", "ORT", "OBJEKT", "KREUZUNG", "STICHWORT B", "STICHWORT SO", "PRIO.", "SCHLAGW", "EINSATZMITTELNAME" };
+        private static readonly string[] Keywords = new[]
+            {
+               "", "ABSENDER", "FAX", "TERMIN", "EINSATZNUMMER", "NAME", "STRA√üE", "HAUS-NR.", "ORT", "OBJEKT","STATION", "SCHLAGW",
+                "EINSATZMITTEL", "ALARMIERT", "AUS"
+            };
 
         #endregion
 
@@ -70,6 +72,40 @@ namespace AlarmWorkflow.Parser.Library
         }
 
         /// <summary>
+        /// Returns the message text, which is the line text but excluding the keyword/prefix and a possible colon.
+        /// </summary>
+        /// <param name="line"></param>
+        /// <param name="prefix">The prefix that is to be removed (optional).</param>
+        /// <returns></returns>
+        private string GetMessageText(string line, string prefix)
+        {
+            if (prefix == null)
+            {
+                prefix = "";
+            }
+
+            if (prefix.Length > 0)
+            {
+                line = line.Remove(0, prefix.Length).Trim();
+            }
+            else
+            {
+                int colonIndex = line.IndexOf(':');
+                if (colonIndex != -1)
+                {
+                    line = line.Remove(0, colonIndex + 1);
+                }
+            }
+
+            if (line.StartsWith(":"))
+            {
+                line = line.Remove(0, 1).Trim();
+            }
+
+            return line;
+        }
+
+        /// <summary>
         /// Attempts to read the zip code from the city, if available.
         /// </summary>
         /// <param name="cityText"></param>
@@ -100,36 +136,47 @@ namespace AlarmWorkflow.Parser.Library
             if (line.Contains("EINSATZORT"))
             {
                 section = CurrentSection.CEinsatzort;
-                //Is not true but only works that way
+                keywordsOnly = true;
+                return true;
+            }
+            if (line.Contains("ZIELORT"))
+            {
+                section = CurrentSection.DZielort;
                 keywordsOnly = true;
                 return true;
             }
             if (line.Contains("EINSATZGRUND"))
             {
-                section = CurrentSection.DEinsatzgrund;
+                section = CurrentSection.EEinsatzgrund;
                 keywordsOnly = true;
                 return true;
             }
             if (line.Contains("EINSATZMITTEL"))
             {
-                section = CurrentSection.EEinsatzmittel;
+                section = CurrentSection.FEinsatzmittel;
                 keywordsOnly = true;
                 return true;
             }
             if (line.Contains("BEMERKUNG"))
             {
-                section = CurrentSection.FBemerkung;
+                section = CurrentSection.GBemerkung;
                 keywordsOnly = false;
                 return true;
             }
             if (line.Contains("ENDE FAX"))
             {
-                section = CurrentSection.GFooter;
+                section = CurrentSection.HFooter;
                 keywordsOnly = false;
+                return true;
+            }
+            if (line.Contains("- PATIENT -"))
+            {
+                section = CurrentSection.ZNull;
                 return true;
             }
             return false;
         }
+
         #endregion
 
         #region IParser Members
@@ -140,11 +187,11 @@ namespace AlarmWorkflow.Parser.Library
             OperationResource last = new OperationResource();
 
             lines = Utilities.Trim(lines);
-
+            string streetInfo = string.Empty;
+            string street, streetNumber, appendix;
             CurrentSection section = CurrentSection.AHeader;
             bool keywordsOnly = true;
-
-            InnerSection innerSection = InnerSection.AStraﬂe;
+            InnerSection innerSection = InnerSection.AStra√üe;
             for (int i = 0; i < lines.Length; i++)
             {
                 try
@@ -157,7 +204,6 @@ namespace AlarmWorkflow.Parser.Library
 
                     // Try to parse the header and extract date and time if possible
                     operation.Timestamp = ReadFaxTimestamp(line, operation.Timestamp);
-
 
                     if (GetSection(line.Trim(), ref section, ref keywordsOnly))
                     {
@@ -199,9 +245,14 @@ namespace AlarmWorkflow.Parser.Library
                             {
                                 switch (prefix)
                                 {
+                                    case "ABSENDER":
+                                        operation.CustomData["Absender"] = msg;
+                                        break;
+                                    case "TERMIN":
+                                        operation.CustomData["Termin"] = msg;
+                                        break;
                                     case "EINSATZNUMMER":
-                                        operation.OperationNumber = ParserUtility.GetTextBetween(msg, null, "ALARMZEIT");
-                                        operation.Timestamp = ReadFaxTimestamp(ParserUtility.GetTextBetween(msg, "ALARMZEIT", null), DateTime.Now);
+                                        operation.OperationNumber = msg;
                                         break;
                                 }
                             }
@@ -219,20 +270,19 @@ namespace AlarmWorkflow.Parser.Library
                             break;
                         case CurrentSection.CEinsatzort:
                             {
-
                                 switch (prefix)
                                 {
-                                    case "STRAﬂE":
+                                    case "STRA√üE":
                                         {
-                                            innerSection = InnerSection.AStraﬂe;
-                                            string street, streetNumber, appendix;
-                                            ParserUtility.AnalyzeStreetLine(msg, out street, out streetNumber, out appendix);
-                                            operation.CustomData["Einsatzort Zusatz"] = appendix;
-                                            operation.Einsatzort.Street = street;
-                                            operation.Einsatzort.StreetNumber = streetNumber;
+                                            innerSection = InnerSection.AStra√üe;
+                                            streetInfo += msg;
                                         }
                                         break;
-                                    case "ABSCHNITT":
+                                    case "HAUS-NR.":
+                                        {
+                                            innerSection = InnerSection.AStra√üe;
+                                            streetInfo = string.Format("{0} {1}", streetInfo, line);
+                                        }
                                         break;
                                     case "ORT":
                                         {
@@ -245,45 +295,22 @@ namespace AlarmWorkflow.Parser.Library
 
                                             operation.Einsatzort.City = msg.Remove(0, operation.Einsatzort.ZipCode.Length).Trim();
 
-                                            // The City-text often contains a dash after which the administrative city appears multiple times (like "City A - City A City A").
-                                            // However we can (at least with google maps) omit this information without problems!
-                                            int dashIndex = operation.Einsatzort.City.IndexOf(" - ");
-                                            if (dashIndex != -1)
-                                            {
-                                                // Ignore everything after the dash
-                                                operation.Einsatzort.City = operation.Einsatzort.City.Substring(0, dashIndex).Trim();
-                                            }
                                         }
                                         break;
                                     case "OBJEKT":
                                         innerSection = InnerSection.CObjekt;
                                         operation.Einsatzort.Property = msg;
                                         break;
-                                    case "KREUZUNG":
-                                        operation.Einsatzort.Intersection = msg;
-                                        break;
                                     case "STATION":
-                                        operation.CustomData.Add("Einsatzort Station:", msg);
-                                        break;
-                                    case "KOORDINATE":
-                                        Regex r = new Regex(@"\d+");
-                                        var matches = r.Matches(line);
-                                        if (matches.Count == 2)
-                                        {
-                                            int rechts = Convert.ToInt32(matches[0].Value);
-                                            int hoch = Convert.ToInt32(matches[1].Value);
-                                            GaussKrueger gauss = new GaussKrueger(rechts, hoch);
-                                            Geographic geo = (Geographic)gauss;
-                                            operation.Einsatzort.GeoLatitude = geo.Latitude;
-                                            operation.Einsatzort.GeoLongitude = geo.Longitude;
-                                        }
+                                        innerSection = InnerSection.DStation;
+                                        operation.CustomData["Einsatzort Station"] = msg;
                                         break;
                                     default:
                                         switch (innerSection)
                                         {
-                                            case InnerSection.AStraﬂe:
+                                            case InnerSection.AStra√üe:
                                                 //Quite dirty because of Streetnumber. Looking for better solution
-                                                operation.Einsatzort.Street += msg;
+                                                streetInfo += msg;
                                                 break;
                                             case InnerSection.BOrt:
                                                 operation.Einsatzort.City += msg;
@@ -291,13 +318,69 @@ namespace AlarmWorkflow.Parser.Library
                                             case InnerSection.CObjekt:
                                                 operation.Einsatzort.Property += msg;
                                                 break;
+                                            case InnerSection.DStation:
+                                                operation.CustomData["Einsatzort Station"] += msg;
+                                                break;
                                         }
                                         break;
                                 }
                             }
                             break;
+                        case CurrentSection.DZielort:
+                            {
+                                switch (prefix)
+                                {
+                                    case "STRA√üE":
+                                        {
+                                            innerSection = InnerSection.AStra√üe;
+                                            ParserUtility.AnalyzeStreetLine(msg, out street, out streetNumber, out appendix);
+                                            operation.CustomData["Zielort Zusatz"] = appendix;
+                                            operation.Zielort.Street = street;
+                                            operation.Zielort.StreetNumber = streetNumber;
+                                        }
+                                        break;
+                                    case "ORT":
+                                        {
+                                            innerSection = InnerSection.BOrt;
+                                            operation.Zielort.ZipCode = ReadZipCodeFromCity(msg);
+                                            if (string.IsNullOrWhiteSpace(operation.Zielort.ZipCode))
+                                            {
+                                                Logger.Instance.LogFormat(LogType.Warning, this, "Could not find a zip code for city '{0}'. Route planning may fail or yield wrong results!", operation.Zielort.City);
+                                            }
 
-                        case CurrentSection.DEinsatzgrund:
+                                            operation.Zielort.City = msg.Remove(0, operation.Zielort.ZipCode.Length).Trim();
+                                        }
+                                        break;
+                                    case "OBJEKT":
+                                        innerSection = InnerSection.CObjekt;
+                                        operation.Zielort.Property = msg;
+                                        break;
+                                    case "STATION":
+                                        innerSection = InnerSection.DStation;
+                                        operation.CustomData["Zielort Station"] = msg;
+                                        break;
+                                    default:
+                                        switch (innerSection)
+                                        {
+                                            case InnerSection.AStra√üe:
+                                                //Quite dirty because of Streetnumber. Looking for better solution
+                                                operation.Zielort.Street += msg;
+                                                break;
+                                            case InnerSection.BOrt:
+                                                operation.Zielort.City += msg;
+                                                break;
+                                            case InnerSection.CObjekt:
+                                                operation.Zielort.Property += msg;
+                                                break;
+                                            case InnerSection.DStation:
+                                                operation.CustomData["Zielort Station"] += msg;
+                                                break;
+                                        }
+                                        break;
+                                }
+                            }
+                            break;
+                        case CurrentSection.EEinsatzgrund:
                             {
                                 switch (prefix)
                                 {
@@ -305,50 +388,59 @@ namespace AlarmWorkflow.Parser.Library
                                         operation.Keywords.Keyword = msg;
                                         break;
                                     case "STICHWORT B":
-                                        operation.Keywords.B = ParserUtility.GetTextBetween(msg, null, "STICHWORT RD:");
-                                        operation.Keywords.R = ParserUtility.GetTextBetween(msg, "STICHWORT RD:", null);
+                                        operation.Keywords.B = msg;
                                         break;
-                                    case "STICHWORT SO":
-                                        operation.Keywords.S = ParserUtility.GetTextBetween(msg, null, "STICHWORT TH:");
-                                        operation.Keywords.T = ParserUtility.GetTextBetween(msg, "STICHWORT TH:", "STICHWORT IN:");
-                                        operation.CustomData.Add("Stichwort IN:", ParserUtility.GetTextBetween(msg, "STICHWORT IN:", null));
+                                    case "STICHWORT R":
+                                        operation.Keywords.R = msg;
+                                        break;
+                                    case "STICHWORT S":
+                                        operation.Keywords.S = msg;
+                                        break;
+                                    case "STICHWORT T":
+                                        operation.Keywords.T = msg;
                                         break;
                                     case "PRIO.":
                                         operation.Priority = msg;
                                         break;
-
                                 }
                             }
                             break;
-                        case CurrentSection.EEinsatzmittel:
+                        case CurrentSection.FEinsatzmittel:
                             {
-                                switch (prefix)
+                                if (line.StartsWith("NAME", StringComparison.CurrentCultureIgnoreCase))
                                 {
-                                    case "EINSATZMITTELNAME":
-                                        last.FullName = msg.Trim();
-                                        break;
+                                    msg = GetMessageText(line, "NAME");
+                                    last.FullName = msg.Trim();
+                                }
+                                else if (line.StartsWith("ALARMIERT", StringComparison.CurrentCultureIgnoreCase) && !string.IsNullOrEmpty(msg))
+                                {
+                                    msg = GetMessageText(line, "Alarmiert");
 
-                                    case "GEF. GERƒTE":
-                                        // Only add to requested equipment if there is some text,
-                                        // otherwise the whole vehicle is the requested equipment
-                                        if (!string.IsNullOrWhiteSpace(msg))
-                                        {
-                                            last.RequestedEquipment.Add(msg);
-                                        }
-                                        operation.Resources.Add(last);
-                                        last = new OperationResource();
-                                        break;
+                                    // In case that parsing the time failed, we just assume that the resource got requested right away.
+                                    DateTime dt;
+                                    // Most of the time the OCR-software reads the colon as a "1", so we check this case right here.
+                                    if (!DateTime.TryParseExact(msg, "dd.MM.yyyy HH1mm", CultureInfo.InvariantCulture, DateTimeStyles.None, out dt))
+                                    {
+                                        // If this is NOT the case and it was parsed correctly, try it here
+                                        DateTime.TryParseExact(msg, "dd.MM.yyyy HH:mm", CultureInfo.InvariantCulture, DateTimeStyles.None, out dt);
+                                    }
 
+                                    last.Timestamp = dt.ToString(CultureInfo.InvariantCulture);
+                                }
+                                else if (line.StartsWith("AUS", StringComparison.CurrentCultureIgnoreCase))
+                                {
+                                    operation.Resources.Add(last);
+                                    last = new OperationResource();
                                 }
                             }
                             break;
-                        case CurrentSection.FBemerkung:
+                        case CurrentSection.GBemerkung:
                             {
                                 // Append with newline at the end in case that the message spans more than one line
                                 operation.Comment = operation.Comment.AppendLine(msg);
                             }
                             break;
-                        case CurrentSection.GFooter:
+                        case CurrentSection.HFooter:
                             // The footer can be ignored completely.
                             break;
                     }
@@ -358,6 +450,34 @@ namespace AlarmWorkflow.Parser.Library
                     Logger.Instance.LogFormat(LogType.Warning, this, "Error while parsing line '{0}'. The error message was: {1}", i, ex.Message);
                 }
             }
+
+            if (!string.IsNullOrWhiteSpace(operation.Einsatzort.City))
+            {
+                // The City-text often contains a dash after which the administrative city appears multiple times (like "City A - City A City A").
+                // However we can (at least with google maps) omit this information without problems!
+                int dashIndex = operation.Einsatzort.City.IndexOf(" - ", System.StringComparison.Ordinal);
+                if (dashIndex != -1)
+                {
+                    // Ignore everything after the dash
+                    operation.Einsatzort.City = operation.Einsatzort.City.Substring(0, dashIndex).Trim();
+                }
+            }
+            if (!string.IsNullOrWhiteSpace(operation.Zielort.City))
+            {
+                // The City-text often contains a dash after which the administrative city appears multiple times (like "City A - City A City A").
+                // However we can (at least with google maps) omit this information without problems!
+                int dashIndex = operation.Zielort.City.IndexOf(" - ", StringComparison.Ordinal);
+                if (dashIndex != -1)
+                {
+                    // Ignore everything after the dash
+                    operation.Zielort.City = operation.Zielort.City.Substring(0, dashIndex).Trim();
+                }
+            }
+
+            ParserUtility.AnalyzeStreetLine(streetInfo, out street, out streetNumber, out appendix);
+            operation.CustomData["Einsatzort Zusatz"] = appendix;
+            operation.Einsatzort.Street = street;
+            operation.Einsatzort.StreetNumber = streetNumber;
             return operation;
         }
 
@@ -370,21 +490,26 @@ namespace AlarmWorkflow.Parser.Library
             AHeader,
             BMitteiler,
             CEinsatzort,
-            DEinsatzgrund,
-            EEinsatzmittel,
-            FBemerkung,
+            DZielort,
+            EEinsatzgrund,
+            FEinsatzmittel,
+            GBemerkung,
+
             /// <summary>
             /// Footer text. Introduced by "ENDE FAX". Can be ignored completely.
             /// </summary>
-            GFooter
+            HFooter,
+            // Temporary Region
+            ZNull
+
         }
         private enum InnerSection
         {
-            AStraﬂe,
+            AStra√üe,
             BOrt,
             CObjekt,
+            DStation,
         }
         #endregion
     }
 }
-

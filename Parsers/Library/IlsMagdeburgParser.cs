@@ -14,23 +14,27 @@
 // along with AlarmWorkflow.  If not, see <http://www.gnu.org/licenses/>.
 
 using System;
+using System.Collections.Generic;
+using System.Configuration;
+using System.Linq;
+using System.Text;
 using AlarmWorkflow.Shared.Core;
 using AlarmWorkflow.Shared.Diagnostics;
 using AlarmWorkflow.Shared.Extensibility;
 
 namespace AlarmWorkflow.Parser.Library
 {
-    [Export("IlsKreuznachParser", typeof(IParser))]
-    class IlsKreuznachParser : IParser
+    [Export("IlsMagdeburgParser", typeof(IParser))]
+    internal class IlsMagdeburgParser : IParser
     {
         #region Fields
 
-        private readonly string[] _keywords = new[]
-            {
-                "Einsatznummer", "Einsatzort", "Ort", "Strasse","Objekt","BMA-Nummer/Linie","BMA-Info",
-                "Ortsteil", "Besonderheiten", "Einsatzart", "Alarmstichwort",
-                "Meldender"
-            };
+        private readonly string[] _keywords =
+        {
+            "Einsatz-Nr.", "Str./Hausnr.", "Ortst./Gem.",
+            "sonst. Ortsangabe.", "Objekt-Nummer","Objekt",
+            "Stichwort", "Bemerkungen", "Telefonnummer", "Meldender"
+        };
 
         #endregion
 
@@ -39,19 +43,26 @@ namespace AlarmWorkflow.Parser.Library
         Operation IParser.Parse(string[] lines)
         {
             Operation operation = new Operation();
+            OperationResource last = new OperationResource();
+
             lines = Utilities.Trim(lines);
-            CurrentSection section = CurrentSection.ADaten;
+            CurrentSection section = CurrentSection.AHeader;
+            InnerSection inner = InnerSection.None;
             bool keywordsOnly = true;
             for (int i = 0; i < lines.Length; i++)
             {
-                string line = lines[i];
                 try
                 {
+                    string line = lines[i];
                     if (line.Length == 0)
                     {
                         continue;
                     }
-                    GetSection(line.Trim(), ref section, ref keywordsOnly);
+                    if (GetSection(line.Trim(), ref section, ref keywordsOnly))
+                    {
+                        continue;
+                    }
+
                     string msg = line;
                     string prefix = "";
 
@@ -65,7 +76,7 @@ namespace AlarmWorkflow.Parser.Library
                         }
 
                         int x = line.IndexOf(':');
-                        if (x == -1)
+                        if (x == -1 || x > keyword.Length + 1)
                         {
                             // If there is no colon found (may happen occasionally) then simply remove the length of the keyword from the beginning
                             prefix = keyword;
@@ -78,65 +89,72 @@ namespace AlarmWorkflow.Parser.Library
                         }
                         prefix = prefix.Trim().ToUpperInvariant();
                     }
+
+                    // Parse each section
                     switch (section)
                     {
-                        case CurrentSection.ADaten:
+                        case CurrentSection.AHeader:
+                            {
+                                if (inner == InnerSection.ENr)
+                                {
+                                    operation.OperationNumber = msg;
+                                }
+                                switch (prefix)
+                                {
+                                    case "EINSATZ-NR.":
+                                        inner = InnerSection.ENr;
+                                        break;
+                                }
+                            }
+                            break;
+                        case CurrentSection.Einsatzmeldung:
                             switch (prefix)
                             {
-                                case "EINSATZNUMMER":
-                                    operation.OperationNumber = msg;
-                                    break;
-                                case "EINSATZORT":
-                                    operation.Einsatzort.Location = msg;
-                                    break;
-                                case "OBJEKT":
-                                    operation.Einsatzort.Property = msg;
-                                    break;
-                                case "ORT":
-                                    operation.Einsatzort.City = msg;
-                                    break;
-                                case "BMA-NUMMER/LINIE":
-                                    operation.OperationPlan = msg;
-                                    break;
-                                case "ORTSTEIL":
-                                    operation.CustomData["Einsatzort Ortsteil"] = msg;
-                                    break;
-                                case "STRASSE":
+                                case "STR./HAUSNR.":
                                     string street, streetNumber, appendix;
+
                                     ParserUtility.AnalyzeStreetLine(msg, out street, out streetNumber, out appendix);
                                     operation.CustomData["Einsatzort Zusatz"] = appendix;
                                     operation.Einsatzort.Street = street;
                                     operation.Einsatzort.StreetNumber = streetNumber;
                                     break;
-                                case "BESONDERHEITEN":
-                                    operation.Comment = msg;
+                                case "SONST. ORTSANGABE.":
+                                    operation.CustomData["Einsatzort Zusatz"] = (operation.CustomData["Einsatzort Zusatz"] as string).AppendLine(msg);
                                     break;
-                                case "EINSATZART":
+                                case "OBJEKT":
+                                    operation.Einsatzort.Property = msg;
+                                    break;
+                                case "OBJEKT-NUMMER":
+                                    operation.Einsatzort.Property = operation.Einsatzort.Property.AppendLine(msg);
+                                    break;
+                                case "ORTST./GEM.":
+                                    operation.Einsatzort.City = msg;
+                                    break;
+                                case "STICHWORT":
                                     operation.Keywords.Keyword = msg;
-                                    break;
-                                case "ALARMSTICHWORT":
-                                    operation.Keywords.EmergencyKeyword = msg;
                                     break;
                                 case "MELDENDER":
                                     operation.Messenger = msg;
                                     break;
+                                case "TELEFONNUMMER":
+                                    operation.Messenger = operation.Messenger.AppendLine(msg);
+                                    break;
+                                case "BEMERKUNGEN":
+                                    operation.Picture = msg;
+                                    break;
                             }
                             break;
-                        case CurrentSection.CEinsatzmittel:
-                            if (line.Contains("Alarmierte Einheiten"))
+                        case CurrentSection.Hinweise:
                             {
-                                continue;
+                                operation.Comment = operation.Comment.AppendLine(msg);
                             }
-                            OperationResource resource = new OperationResource {FullName = msg};
-                            operation.Resources.Add(resource);
-                            break;
-                        case CurrentSection.EFooter:
                             break;
                     }
                 }
                 catch (Exception ex)
                 {
-                    Logger.Instance.LogFormat(LogType.Warning, this, "Error while parsing line '{0}'. The error message was: {1}", i, ex.Message);
+                    Logger.Instance.LogFormat(LogType.Warning, this,
+                        "Error while parsing line '{0}'. The error message was: {1}", i, ex.Message);
                 }
             }
             return operation;
@@ -148,22 +166,22 @@ namespace AlarmWorkflow.Parser.Library
 
         private bool GetSection(String line, ref CurrentSection section, ref bool keywordsOnly)
         {
-            if (line.Contains("Alarmierte Einheiten"))
+            if (line.Contains("Einsatzmeldung"))
             {
-                section = CurrentSection.CEinsatzmittel;
+                section = CurrentSection.Einsatzmeldung;
+                keywordsOnly = true;
+                return true;
+            }
+            if (line.Contains("Hinweise"))
+            {
+                section = CurrentSection.Hinweise;
                 keywordsOnly = false;
                 return true;
             }
-            if (line.Contains("Alarmgruppen"))
+            if (line.Contains("Alarmierungen"))
             {
-                section = CurrentSection.ZTemp;
-                keywordsOnly = true;
-                return true;
-            }
-            if (line.Contains("Ausdruck vom"))
-            {
-                section = CurrentSection.EFooter;
-                keywordsOnly = true;
+                section = CurrentSection.Alarmierungen;
+                keywordsOnly = false;
                 return true;
             }
             return false;
@@ -175,10 +193,16 @@ namespace AlarmWorkflow.Parser.Library
 
         private enum CurrentSection
         {
-            ADaten,
-            CEinsatzmittel,
-            EFooter,
-            ZTemp
+            Einsatzmeldung,
+            Hinweise,
+            Alarmierungen,
+            AHeader
+        }
+
+        private enum InnerSection
+        {
+            ENr,
+            None
         }
 
         #endregion

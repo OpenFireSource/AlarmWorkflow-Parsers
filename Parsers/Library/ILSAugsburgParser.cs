@@ -14,9 +14,12 @@
 // along with AlarmWorkflow.  If not, see <http://www.gnu.org/licenses/>.
 
 using System;
+using System.Globalization;
+using System.Text.RegularExpressions;
 using AlarmWorkflow.Shared.Core;
 using AlarmWorkflow.Shared.Diagnostics;
 using AlarmWorkflow.Shared.Extensibility;
+using GeoUtility.GeoSystem;
 
 namespace AlarmWorkflow.Parser.Library
 {
@@ -25,7 +28,7 @@ namespace AlarmWorkflow.Parser.Library
     {
         #region Constants
 
-        private static readonly string[] Keywords = new[] { "", "ABSENDER", "NAME", "STRAßE", "ORT", "OBJEKT", "KREUZUNG", "STICHWORT", "SCHLAGW" };
+        private static readonly string[] Keywords = new[] { "", "EINSATZNUMMER FÜR EINSATZNACHBEARBEITUNG", "EINSATZPLAN", "KOORDINATE", "ABSENDER", "NAME", "STRAßE", "ORT", "OBJEKT", "KREUZUNG", "STICHWORT", "SCHLAGW" };
 
         #endregion
 
@@ -119,7 +122,7 @@ namespace AlarmWorkflow.Parser.Library
                     if (keywordsOnly)
                     {
                         string keyword;
-                        if (!ParserUtility.StartsWithKeyword(line,Keywords, out keyword))
+                        if (!ParserUtility.StartsWithKeyword(line, Keywords, out keyword))
                         {
                             continue;
                         }
@@ -199,6 +202,20 @@ namespace AlarmWorkflow.Parser.Library
                                         break;
                                     case "KREUZUNG":
                                         operation.Einsatzort.Intersection = msg;
+                                        break;
+                                    case "KOORDINATE":
+                                        Regex r = new Regex(@"(\d+\.\d+)");
+                                        var matches = r.Matches(line);
+                                        if (matches.Count == 2)
+                                        {
+                                            NumberFormatInfo nfi = new NumberFormatInfo { NumberDecimalSeparator = "." };
+                                            double rechts = Convert.ToDouble(matches[0].Value, nfi);
+                                            double hoch = Convert.ToDouble(matches[1].Value, nfi);
+                                            GaussKrueger gauss = new GaussKrueger(rechts, hoch);
+                                            Geographic geo = (Geographic)gauss;
+                                            operation.Einsatzort.GeoLatitude = geo.Latitude;
+                                            operation.Einsatzort.GeoLongitude = geo.Longitude;
+                                        }
                                         break;
                                     default:
                                         switch (innerSection)

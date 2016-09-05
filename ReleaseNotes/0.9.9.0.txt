@@ -1,0 +1,23 @@
+AlarmWorkflow - Parser v0.9.9.0 Release Notes
+=============================================
+
+Änderungen seit v0.9.8.0
+------------------------
+
+Bearbeitet
+  * ILS Amberg: Postleitzahl wird nun auch berücksichtigt. Koordinaten werden auch ausgelesen.
+  * ILS Augsburg: Koordinaten werden ausgelesen
+  * ILS Erding: Letzte Zeile wird ignoriert
+  * ILS FFB: händisch hinzugefügte Straßen werden richtig erkannt.
+  * ILS Ingolstadt: Anpassungen für neues Layout
+  * ILS Limburg: "Ortsteil"/"Ort" wird korrekt ausgelesen.
+  * ILS Passau: Koordinaten werden ausgelesen
+  * ILS Rosenheim: Koordinaten werden ausgelesen
+  * ILS Straubing: Fahrzeuge & Geräte werden richtig ausgelesen
+  * ILS Traunstein: Koordinaten werden ausgelesen
+Hinzugefügt
+  * Ils Bamberg Forchheim
+  * Ils Ludwigsburg
+  * Ils Magdeburg
+  * ILS Nordoperpfalz
+  * LST Tirol

@@ -25,7 +25,7 @@ namespace AlarmWorkflow.Parser.Library
     {
         #region Fields
 
-        private readonly string[] _keywords = new string[] { "Einsatzdepeche", "AAO", "Einsatzort", "Strasse", "Ort", "Objekt", "Wer", "Was", "Wo", "Einsatzplan", "Hinweistext", "Einheiten" };
+        private readonly string[] _keywords = new string[] { "Einsatzdepeche", "AAO", "Einsatzort", "Strasse", "Ort", "Objekt", "Wer", "Was", "Wo", "Einsatzplan", "Hinweistext zum Objekt", "Einheiten" };
 
         #endregion
 
@@ -34,7 +34,7 @@ namespace AlarmWorkflow.Parser.Library
         Operation IParser.Parse(string[] lines)
         {
             Operation operation = new Operation();
-            CurrentSection section = CurrentSection.AAnfang;
+            CurrentSection section = CurrentSection.ZEnde;
             lines = Utilities.Trim(lines);
             foreach (string line in lines)
             {
@@ -42,7 +42,6 @@ namespace AlarmWorkflow.Parser.Library
                 string messageText = line;
                 if (ParserUtility.StartsWithKeyword(line, _keywords, out keyword))
                 {
-
                     switch (keyword)
                     {
                         case "Einsatzdepeche":
@@ -95,7 +94,7 @@ namespace AlarmWorkflow.Parser.Library
                                 section = CurrentSection.KEinsatzplan;
                                 break;
                             }
-                        case "Hinweistext":
+                        case "Hinweistext zum Objekt":
                             {
                                 section = CurrentSection.LHinweis;
                                 break;
@@ -107,10 +106,9 @@ namespace AlarmWorkflow.Parser.Library
                             }
 
                     }
-                    if (section == CurrentSection.GMeldender || section == CurrentSection.HSchlagwort || section == CurrentSection.JZusatzinfo || section == CurrentSection.MEinheiten)
-                    {
-                        section = CurrentSection.ZEnde;
-                    }
+                    if (section == CurrentSection.HSchlagwort || section == CurrentSection.JZusatzinfo || section == CurrentSection.GMeldender)
+                        continue;
+
                     messageText = ParserUtility.GetMessageText(line, keyword);
                 }
 
@@ -154,17 +152,20 @@ namespace AlarmWorkflow.Parser.Library
                         }
                     case CurrentSection.GMeldender:
                         {
-                            operation.Messenger = messageText + Environment.NewLine;
+                            operation.Messenger = operation.Messenger.AppendLine(messageText);
+                            section = CurrentSection.ZEnde;
                             break;
                         }
                     case CurrentSection.HSchlagwort:
                         {
                             operation.Keywords.EmergencyKeyword = messageText;
+                            section = CurrentSection.ZEnde;
                             break;
                         }
                     case CurrentSection.JZusatzinfo:
                         {
-                            operation.Picture = messageText + Environment.NewLine;
+                            operation.Picture = operation.Picture.AppendLine(messageText);
+                            section = CurrentSection.ZEnde;
                             break;
                         }
                     case CurrentSection.KEinsatzplan:
@@ -174,7 +175,7 @@ namespace AlarmWorkflow.Parser.Library
                         }
                     case CurrentSection.LHinweis:
                         {
-                            operation.Comment = messageText + Environment.NewLine;
+                            operation.Comment = operation.Comment.AppendLine(messageText);
                             break;
                         }
                     case CurrentSection.MEinheiten:

@@ -14,23 +14,32 @@
 // along with AlarmWorkflow.  If not, see <http://www.gnu.org/licenses/>.
 
 using System;
+using System.Text.RegularExpressions;
 using AlarmWorkflow.Shared.Core;
 using AlarmWorkflow.Shared.Diagnostics;
 using AlarmWorkflow.Shared.Extensibility;
 
 namespace AlarmWorkflow.Parser.Library
 {
-    [Export("IlsKreuznachParser", typeof(IParser))]
-    class IlsKreuznachParser : IParser
+    [Export("LstTirolParser", typeof(IParser))]
+    class LstTirolParser : IParser
     {
+        #region Static
+
+        private static readonly Regex PlzRegex = new Regex(@"(\d{4}) (.*)", RegexOptions.Compiled);
+
+        #endregion
+
         #region Fields
 
         private readonly string[] _keywords = new[]
-            {
-                "Einsatznummer", "Einsatzort", "Ort", "Strasse","Objekt","BMA-Nummer/Linie","BMA-Info",
-                "Ortsteil", "Besonderheiten", "Einsatzart", "Alarmstichwort",
-                "Meldender"
-            };
+                                                        {
+                                                            "EINSATZBEGINN Uhrzeit/Datum","PLZ - ORT","STRASSE HNR.","OBJEKTBEZEICHNUNG",
+                                                            "INFO ZU OBJEKT","INFO AUS DEN ÖRTLICHEN EINSATZINFORMATIONEN",
+                                                            "MDL-NUMMER","MELDERNAME","MELDERTELEFONNUMMER","MELDER PLZ - ORT","MEDER STRASSE HNR.",
+                                                            "MELDER OBJEKTBEZEICHNUNG","MELDER INFO ZUM OBJEKT",
+                                                            "EINSATZCODE","EINSATZTEXT","ÖRTLICHE EINSATZINFORMATIONEN"
+                                                        };
 
         #endregion
 
@@ -39,24 +48,33 @@ namespace AlarmWorkflow.Parser.Library
         Operation IParser.Parse(string[] lines)
         {
             Operation operation = new Operation();
-            lines = Utilities.Trim(lines);
             CurrentSection section = CurrentSection.ADaten;
+            lines = Utilities.Trim(lines);
             bool keywordsOnly = true;
             for (int i = 0; i < lines.Length; i++)
             {
-                string line = lines[i];
                 try
                 {
+                    string line = lines[i];
                     if (line.Length == 0)
                     {
                         continue;
                     }
-                    GetSection(line.Trim(), ref section, ref keywordsOnly);
+                    string keyword = "";
+                    if (ParserUtility.StartsWithKeyword(line, _keywords, out keyword) && section == CurrentSection.BEinsatzmittel)
+                    {
+                        section = CurrentSection.ADaten;
+                        keywordsOnly = true;
+                    }
+                    if (GetSection(line.Trim(), ref section, ref keywordsOnly))
+                    {
+                        continue;
+                    }
+
                     string msg = line;
                     string prefix = "";
 
                     // Make the keyword check - or not (depends on the section we are in; see above)
-                    string keyword = "";
                     if (keywordsOnly)
                     {
                         if (!ParserUtility.StartsWithKeyword(line, _keywords, out keyword))
@@ -78,59 +96,50 @@ namespace AlarmWorkflow.Parser.Library
                         }
                         prefix = prefix.Trim().ToUpperInvariant();
                     }
+
                     switch (section)
                     {
                         case CurrentSection.ADaten:
                             switch (prefix)
                             {
-                                case "EINSATZNUMMER":
-                                    operation.OperationNumber = msg;
+                                case "EINSATZBEGINN UHRZEIT/DATUM":
+                                    operation.Timestamp = ParserUtility.ReadFaxTimestamp(ParserUtility.GetTextBetween(msg, null, "/"), DateTime.Now);
+                                    operation.OperationNumber = ParserUtility.GetTextBetween(msg, "Einsatznr.:");
                                     break;
-                                case "EINSATZORT":
-                                    operation.Einsatzort.Location = msg;
+                                case "PLZ - ORT":
+                                    if (PlzRegex.IsMatch(msg))
+                                    {
+                                        Match result = PlzRegex.Match(msg);
+                                        operation.Einsatzort.ZipCode = result.Groups[1].Value;
+                                        operation.Einsatzort.City = result.Groups[2].Value;
+                                    }
                                     break;
-                                case "OBJEKT":
+                                case "STRASSE HNR.":
+                                    operation.Einsatzort.Street = msg;
+                                    break;
+                                case "OBJEKTBEZEICHNUNG":
                                     operation.Einsatzort.Property = msg;
                                     break;
-                                case "ORT":
-                                    operation.Einsatzort.City = msg;
+                                case "INFO ZUM OBJEKT":
+                                    operation.Comment = operation.Comment.AppendLine(msg);
                                     break;
-                                case "BMA-NUMMER/LINIE":
-                                    operation.OperationPlan = msg;
-                                    break;
-                                case "ORTSTEIL":
-                                    operation.CustomData["Einsatzort Ortsteil"] = msg;
-                                    break;
-                                case "STRASSE":
-                                    string street, streetNumber, appendix;
-                                    ParserUtility.AnalyzeStreetLine(msg, out street, out streetNumber, out appendix);
-                                    operation.CustomData["Einsatzort Zusatz"] = appendix;
-                                    operation.Einsatzort.Street = street;
-                                    operation.Einsatzort.StreetNumber = streetNumber;
-                                    break;
-                                case "BESONDERHEITEN":
-                                    operation.Comment = msg;
-                                    break;
-                                case "EINSATZART":
-                                    operation.Keywords.Keyword = msg;
-                                    break;
-                                case "ALARMSTICHWORT":
-                                    operation.Keywords.EmergencyKeyword = msg;
-                                    break;
-                                case "MELDENDER":
+                                case "MELDERNAME":
                                     operation.Messenger = msg;
                                     break;
+                                case "EINSATZCODE":
+                                    operation.Keywords.Keyword = msg;
+                                    break;
+                                case "EINSATZTEXT":
+                                    operation.Picture = operation.Picture.AppendLine(msg);
+                                    break;
+
                             }
                             break;
-                        case CurrentSection.CEinsatzmittel:
-                            if (line.Contains("Alarmierte Einheiten"))
-                            {
-                                continue;
-                            }
-                            OperationResource resource = new OperationResource {FullName = msg};
-                            operation.Resources.Add(resource);
+                        case CurrentSection.BEinsatzmittel:
+                            operation.Resources.Add(new OperationResource() { FullName = msg });
                             break;
-                        case CurrentSection.EFooter:
+                        case CurrentSection.CLink:
+                            section = CurrentSection.DEnde;
                             break;
                     }
                 }
@@ -139,6 +148,7 @@ namespace AlarmWorkflow.Parser.Library
                     Logger.Instance.LogFormat(LogType.Warning, this, "Error while parsing line '{0}'. The error message was: {1}", i, ex.Message);
                 }
             }
+
             return operation;
         }
 
@@ -148,22 +158,16 @@ namespace AlarmWorkflow.Parser.Library
 
         private bool GetSection(String line, ref CurrentSection section, ref bool keywordsOnly)
         {
-            if (line.Contains("Alarmierte Einheiten"))
+            if (line.ToUpper().Contains("FUNKRUFNAME"))
             {
-                section = CurrentSection.CEinsatzmittel;
+                section = CurrentSection.BEinsatzmittel;
                 keywordsOnly = false;
                 return true;
             }
-            if (line.Contains("Alarmgruppen"))
+            if (line.ToUpper().Contains("ÖRTLICHE EINSATZINFORMATIONEN"))
             {
-                section = CurrentSection.ZTemp;
-                keywordsOnly = true;
-                return true;
-            }
-            if (line.Contains("Ausdruck vom"))
-            {
-                section = CurrentSection.EFooter;
-                keywordsOnly = true;
+                section = CurrentSection.CLink;
+                keywordsOnly = false;
                 return true;
             }
             return false;
@@ -176,11 +180,12 @@ namespace AlarmWorkflow.Parser.Library
         private enum CurrentSection
         {
             ADaten,
-            CEinsatzmittel,
-            EFooter,
-            ZTemp
+            BEinsatzmittel,
+            CLink,
+            DEnde
         }
 
         #endregion
+
     }
 }

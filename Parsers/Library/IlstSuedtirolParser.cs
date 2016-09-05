@@ -14,6 +14,7 @@
 // along with AlarmWorkflow.  If not, see <http://www.gnu.org/licenses/>.
 
 using System;
+using System.Globalization;
 using AlarmWorkflow.Shared.Core;
 using AlarmWorkflow.Shared.Extensibility;
 
@@ -77,8 +78,9 @@ namespace AlarmWorkflow.Parser.Library
                         break;
                     case "Lat/Long":
                         string[] values = msg.Split(';');
-                        operation.Einsatzort.GeoLatitude = values[0].Trim().Replace(',', '.');
-                        operation.Einsatzort.GeoLongitude = values[1].Trim().Replace(',', '.');
+                        NumberFormatInfo nfi = new NumberFormatInfo { NumberDecimalSeparator = "." };
+                        operation.Einsatzort.GeoLatitude = Convert.ToDouble(values[0].Trim().Replace(',', '.'), nfi);
+                        operation.Einsatzort.GeoLongitude = Convert.ToDouble(values[1].Trim().Replace(',', '.'), nfi);
                         break;
                     case "Beschreibung":
                         operation.Comment = msg;
