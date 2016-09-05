@@ -11,3 +11,4 @@ Bearbeitet
   * ILS Erding & FFB: Koordinaten werden ausgelesen
   * ILS Straubing optimiert
   * LFS Offenbach: Einsatzmittel werden ausgelesen
+  * FEZ München Land: Koordinaten werden ausgelesen
