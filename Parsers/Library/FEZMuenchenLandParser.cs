@@ -146,7 +146,7 @@ namespace AlarmWorkflow.Parser.Library
                         }
                         break;
                     case CurrentSection.Koordinaten:
-                        string coords = ParserUtility.GetMessageText(line, keyword).Replace("GK4", "").Replace(",", ".");
+                        string coords = ParserUtility.GetMessageText(line, keyword).Replace("GK4", "").Replace(".", ",");
                         Regex r = new Regex(@"[\d.]+");
                         var matches = r.Matches(coords);
                         if (matches.Count == 2)
