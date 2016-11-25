@@ -18,6 +18,7 @@ using System.Text.RegularExpressions;
 using AlarmWorkflow.Shared.Core;
 using AlarmWorkflow.Shared.Diagnostics;
 using AlarmWorkflow.Shared.Extensibility;
+using GeoUtility.GeoSystem;
 
 namespace AlarmWorkflow.Parser.Library
 {
@@ -28,7 +29,7 @@ namespace AlarmWorkflow.Parser.Library
 
         private static readonly string[] Keywords = new[]
             {
-                "ABSENDER", "FAX", "TERMIN", "EINSATZNUMMER", "NAME", "STRAßE",
+                "ABSENDER", "FAX", "TERMIN", "EINSATZNUMMER", "NAME", "STRAßE","KOORDINATE",
                 "ORT", "OBJEKT", "ABSCHNITT", "ZUSTÄNDIGE ILS", "ABTEILUNG", "KREUZUNG",
                 "STATION", "SCHLAGWORT", "PRIO"
             };
@@ -71,27 +72,7 @@ namespace AlarmWorkflow.Parser.Library
             return false;
         }
 
-        /// <summary>
-        /// Attempts to read the zip code from the city, if available.
-        /// </summary>
-        /// <param name="cityText"></param>
-        /// <returns>The zip code of the city. -or- null, if there was no.</returns>
-        private string ReadZipCodeFromCity(string cityText)
-        {
-            string zipCode = "";
-            foreach (char c in cityText)
-            {
-                if (char.IsNumber(c))
-                {
-                    zipCode += c;
-                    continue;
-                }
-                break;
-            }
-            return zipCode;
-        }
-
-        private bool GetSection(String line, ref CurrentSection section, ref bool keywordsOnly)
+        private bool GetSection(string line, ref CurrentSection section, ref bool keywordsOnly)
         {
             if (line.Contains("MITTEILER"))
             {
@@ -123,14 +104,20 @@ namespace AlarmWorkflow.Parser.Library
                 keywordsOnly = false;
                 return true;
             }
-            if (line.Contains("BEMERKUNG") || line.Contains("OBJEKTINFO"))
+            if (line.Contains("OBJEKTINFO"))
+            {
+                section = CurrentSection.Objektinfo;
+                keywordsOnly = false;
+                return true;
+            }
+            if (line.Contains("BEMERKUNG"))
             {
                 section = CurrentSection.GBemerkung;
                 keywordsOnly = false;
                 return true;
             }
 
-            if (line.Contains("ENDE FAX"))
+            if (line.Contains("ENDE ALARMFAX"))
             {
                 section = CurrentSection.HFooter;
                 keywordsOnly = false;
@@ -246,7 +233,7 @@ namespace AlarmWorkflow.Parser.Library
                                         break;
                                     case "ORT":
                                         {
-                                            operation.Einsatzort.ZipCode = ReadZipCodeFromCity(msg);
+                                            operation.Einsatzort.ZipCode = ParserUtility.ReadZipCodeFromCity(msg);
                                             if (string.IsNullOrWhiteSpace(operation.Einsatzort.ZipCode))
                                             {
                                                 Logger.Instance.LogFormat(LogType.Warning, this, "Could not find a zip code for city '{0}'. Route planning may fail or yield wrong results!", operation.Einsatzort.City);
@@ -264,8 +251,9 @@ namespace AlarmWorkflow.Parser.Library
                                             }
                                         }
                                         break;
+                                    case "ABSCHNITT":
                                     case "KREUZUNG":
-                                        operation.Einsatzort.Intersection = msg;
+                                        operation.Einsatzort.Intersection += msg;
                                         break;
                                     case "OBJEKT":
                                         operation.Einsatzort.Property = msg;
@@ -273,9 +261,22 @@ namespace AlarmWorkflow.Parser.Library
                                     case "STATION":
                                         operation.CustomData["Einsatzort Station"] = msg;
                                         break;
+                                    case "KOORDINATE":
+                                        Regex r = new Regex(@"[\d\.]+");
+                                        var matches = r.Matches(line);
+                                        if (matches.Count == 2)
+                                        {
+                                            int rechts = Convert.ToInt32(matches[0].Value);
+                                            int hoch = Convert.ToInt32(matches[1].Value);
+                                            GaussKrueger gauss = new GaussKrueger(rechts, hoch);
+                                            Geographic geo = (Geographic)gauss;
+                                            operation.Einsatzort.GeoLatitude = geo.Latitude;
+                                            operation.Einsatzort.GeoLongitude = geo.Longitude;
+                                        }
+                                        break;
                                     case "ABTEILUNG":
                                     case "ZUSTÄNDIGE ILS":
-                                    case "ABSCHNITT":
+                                    
                                         //These fields are currently unassigned. If required this can be done.
                                         break;
                                 }
@@ -296,7 +297,7 @@ namespace AlarmWorkflow.Parser.Library
                                         break;
                                     case "ORT":
                                         {
-                                            string plz = ReadZipCodeFromCity(msg);
+                                            string plz = ParserUtility.ReadZipCodeFromCity(msg);
                                             operation.Zielort.ZipCode = plz;
                                             operation.Zielort.City = msg.Remove(0, plz.Length).Trim();
                                         }
@@ -332,10 +333,13 @@ namespace AlarmWorkflow.Parser.Library
                                 }
                                 else
                                 {
-                                    operation.Resources.Add(new OperationResource { FullName = msg });
+                                    operation.Resources.Add(new OperationResource { FullName = msg.Replace(':',' ').Trim() });
                                 }
 
                             }
+                            break;
+                        case CurrentSection.Objektinfo:
+                            operation.CustomData["Objektinfo"] += line;
                             break;
                         case CurrentSection.GBemerkung:
                             {
@@ -367,6 +371,7 @@ namespace AlarmWorkflow.Parser.Library
             DZielort,
             EEinsatzgrund,
             FEinsatzmittel,
+            Objektinfo,
             GBemerkung,
 
             /// <summary>
