@@ -15,6 +15,7 @@ Bearbeitet
   * ILS Rosenheim: Koordinaten werden ausgelesen
   * ILS Straubing: Fahrzeuge & Geräte werden richtig ausgelesen
   * ILS Traunstein: Koordinaten werden ausgelesen
+  * FEZ Muenchen Land: Meldebild für Feuermelder hinzugefügt
 Hinzugefügt
   * Ils Bamberg Forchheim
   * Ils Ludwigsburg
