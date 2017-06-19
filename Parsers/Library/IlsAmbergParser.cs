@@ -47,7 +47,7 @@ namespace AlarmWorkflow.Parser.Library
             CurrentSection section = CurrentSection.AHeader;
             bool keywordsOnly = true;
             double geoX = 0, geoY = 0;
-            NumberFormatInfo nfi = new NumberFormatInfo {NumberDecimalSeparator = "."};
+            NumberFormatInfo nfi = new NumberFormatInfo { NumberDecimalSeparator = "." };
             for (int i = 0; i < lines.Length; i++)
             {
                 try
@@ -102,7 +102,7 @@ namespace AlarmWorkflow.Parser.Library
                                 }
                             }
                             break;
-                        case CurrentSection.Koordinaten:
+                        case CurrentSection.CKoordinaten:
                             switch (prefix)
                             {
                                 case "X":
@@ -128,7 +128,7 @@ namespace AlarmWorkflow.Parser.Library
                                     break;
                             }
                             break;
-                        case CurrentSection.CEinsatzort:
+                        case CurrentSection.DEinsatzort:
                             {
                                 switch (prefix)
                                 {
@@ -168,7 +168,37 @@ namespace AlarmWorkflow.Parser.Library
                                 }
                             }
                             break;
-                        case CurrentSection.DEinsatzgrund:
+                        case CurrentSection.EZielort:
+                            {
+                                switch (prefix)
+                                {
+                                    case "STRAßE":
+                                        operation.Zielort.Street = msg;
+                                        break;
+                                    case "HAUS-NR.":
+                                        operation.Zielort.StreetNumber = msg;
+                                        break;
+                                    case "ORT":
+                                        operation.Zielort.ZipCode = ParserUtility.ReadZipCodeFromCity(msg);
+                                        if (!string.IsNullOrWhiteSpace(operation.Zielort.ZipCode))
+                                        {
+                                            operation.Zielort.City = msg.Replace(operation.Zielort.ZipCode, "").Trim();
+                                        }
+                                        else
+                                        {
+                                            operation.Zielort.City = msg;
+                                        }
+                                        break;
+                                    case "OBJEKT":
+                                        operation.Zielort.Property = msg;
+                                        break;
+                                    case "STATION":
+                                        operation.CustomData["Zielort Station"] = msg;
+                                        break;
+                                }
+                            }
+                            break;
+                        case CurrentSection.FEinsatzgrund:
                             {
                                 switch (prefix)
                                 {
@@ -181,7 +211,7 @@ namespace AlarmWorkflow.Parser.Library
                                 }
                             }
                             break;
-                        case CurrentSection.FEinsatzmittel:
+                        case CurrentSection.HEinsatzmittel:
                             {
                                 switch (prefix)
                                 {
@@ -205,7 +235,7 @@ namespace AlarmWorkflow.Parser.Library
                                 }
                             }
                             break;
-                        case CurrentSection.EBemerkungen:
+                        case CurrentSection.GBemerkungen:
                             {
                                 operation.Picture = operation.Picture.AppendLine(msg);
                             }
@@ -235,27 +265,39 @@ namespace AlarmWorkflow.Parser.Library
                 keywordsOnly = true;
                 return true;
             }
+            if (line.Contains("KOORDINATEN"))
+            {
+                section = CurrentSection.CKoordinaten;
+                keywordsOnly = true;
+                return true;
+            }
             if (line.Contains("EINSATZORT"))
             {
-                section = CurrentSection.CEinsatzort;
+                section = CurrentSection.DEinsatzort;
+                keywordsOnly = true;
+                return true;
+            }
+            if (line.Contains("ZIELORT"))
+            {
+                section = CurrentSection.EZielort;
                 keywordsOnly = true;
                 return true;
             }
             if (line.Contains("EINSATZGRUND"))
             {
-                section = CurrentSection.DEinsatzgrund;
+                section = CurrentSection.FEinsatzgrund;
                 keywordsOnly = true;
                 return true;
             }
             if (line.Contains("BEMERKUNGEN"))
             {
-                section = CurrentSection.EBemerkungen;
+                section = CurrentSection.GBemerkungen;
                 keywordsOnly = false;
                 return true;
             }
             if (line.Contains("EINSATZMITTEL"))
             {
-                section = CurrentSection.FEinsatzmittel;
+                section = CurrentSection.HEinsatzmittel;
                 keywordsOnly = true;
                 return true;
             }
@@ -263,12 +305,6 @@ namespace AlarmWorkflow.Parser.Library
             {
                 section = CurrentSection.ZFooter;
                 keywordsOnly = false;
-                return true;
-            }
-            if (line.Contains("KOORDINATEN"))
-            {
-                section = CurrentSection.Koordinaten;
-                keywordsOnly = true;
                 return true;
             }
             return false;
@@ -282,11 +318,12 @@ namespace AlarmWorkflow.Parser.Library
         {
             AHeader,
             BMitteiler,
-            Koordinaten,
-            CEinsatzort,
-            DEinsatzgrund,
-            EBemerkungen,
-            FEinsatzmittel,
+            CKoordinaten,
+            DEinsatzort,
+            EZielort,
+            FEinsatzgrund,
+            GBemerkungen,
+            HEinsatzmittel,
             ZFooter
         }
 
