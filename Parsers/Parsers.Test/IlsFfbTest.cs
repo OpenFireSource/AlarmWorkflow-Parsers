@@ -8,7 +8,7 @@ using NUnit.Framework;
 namespace Parsers.Test
 {
     [TestFixture]
-    [Culture("de-DE")]
+    [SetCulture("de-DE")]
     public class ILSFFBTest
     {
         [Test]
