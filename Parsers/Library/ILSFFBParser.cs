@@ -28,8 +28,8 @@ namespace AlarmWorkflow.Parser.Library
 
         private readonly string[] _keywords = new[]
                                                         {
-                                                            "ALARM","E-Nr","EINSATZORT","STRAßE","KOORDINATEN",
-                                                            "ORTSTEIL/ORT","OBJEKT","EINSATZPLAN","MELDEBILD",
+                                                            "ALARM","E-Nr","EINSATZORT","STRAßE","KOORDINATEN", "ABSCHNITT",
+                                                            "ORTSTEIL / ORT","ORTSTEIL/ORT","OBJEKT","EINSATZPLAN","MELDEBILD",
                                                             "EINSATZSTICHWORT","HINWEIS","EINSATZMITTEL","(ALARMSCHREIBEN ENDE)"
                                                         };
 
@@ -42,9 +42,13 @@ namespace AlarmWorkflow.Parser.Library
             Operation operation = new Operation();
             CurrentSection section = CurrentSection.Anfang;
             lines = Utilities.Trim(lines);
+            string streetData = string.Empty;
+            string sectionData = string.Empty;
+
             foreach (var line in lines)
             {
                 string keyword;
+
                 if (ParserUtility.StartsWithKeyword(line, _keywords, out keyword))
                 {
                     switch (keyword.Trim())
@@ -52,8 +56,10 @@ namespace AlarmWorkflow.Parser.Library
                         case "E-Nr": { section = CurrentSection.ENr; break; }
                         case "EINSATZORT": { section = CurrentSection.Einsatzort; break; }
                         case "STRAßE": { section = CurrentSection.Straße; break; }
+                        case "ABSCHNITT": { section = CurrentSection.Abschnitt; break; }
                         case "KOORDINATEN": { section = CurrentSection.Koordinaten; break; }
-                        case "ORTSTEIL/ORT": { section = CurrentSection.Ort; break; }
+                        case "ORTSTEIL/ORT":
+                        case "ORTSTEIL / ORT": { section = CurrentSection.Ort; break; }
                         case "OBJEKT": { section = CurrentSection.Objekt; break; }
                         case "EINSATZPLAN": { section = CurrentSection.Einsatzplan; break; }
                         case "MELDEBILD": { section = CurrentSection.Meldebild; break; }
@@ -81,11 +87,10 @@ namespace AlarmWorkflow.Parser.Library
                         break;
                     case CurrentSection.Straße:
                         string msg = ParserUtility.GetMessageText(line, keyword);
-                        string street, streetNumber, appendix;
-                        ParserUtility.AnalyzeStreetLine(msg.Replace("1.2", ""), out street, out streetNumber, out appendix);
-                        operation.CustomData["Einsatzort Zusatz"] = appendix;
-                        operation.Einsatzort.Street = street.Trim();
-                        operation.Einsatzort.StreetNumber = streetNumber;
+                        streetData += msg;
+                        break;
+                    case CurrentSection.Abschnitt:
+                        sectionData += ParserUtility.GetMessageText(line, keyword);
                         break;
                     case CurrentSection.Ort:
                         operation.Einsatzort.City = ParserUtility.GetMessageText(line, keyword);
@@ -129,6 +134,10 @@ namespace AlarmWorkflow.Parser.Library
                         break;
                     case CurrentSection.Koordinaten:
                         string coords = ParserUtility.GetMessageText(line, keyword);
+                        if (string.IsNullOrWhiteSpace(coords))
+                        {
+                            break;
+                        }
                         double east = double.Parse(coords.Split('/')[0].Replace('.', ','));
                         double north = double.Parse(coords.Split('/')[1].Replace('.', ','));
                         GaussKrueger gaussKrueger = new GaussKrueger(east, north);
@@ -142,7 +151,12 @@ namespace AlarmWorkflow.Parser.Library
 
                 }
             }
-
+            string street, streetNumber, appendix;
+            ParserUtility.AnalyzeStreetLine(streetData.Replace("1.2", ""), out street, out streetNumber, out appendix);
+            operation.CustomData["Einsatzort Zusatz"] = appendix;
+            operation.Einsatzort.Street = street.Trim();
+            operation.Einsatzort.StreetNumber = streetNumber;
+            operation.Einsatzort.Intersection = sectionData;
             return operation;
         }
 
@@ -164,7 +178,8 @@ namespace AlarmWorkflow.Parser.Library
             Hinweis,
             Einsatzmittel,
             Ende,
-            Koordinaten
+            Koordinaten,
+            Abschnitt
         }
 
         #endregion
