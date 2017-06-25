@@ -96,7 +96,7 @@ namespace AlarmWorkflow.Parser.Library
                         }
                         break;
                     case CurrentSection.Objekt:
-                        operation.Einsatzort.Property = ParserUtility.GetMessageText(line, keyword);
+                        operation.Einsatzort.Property += ParserUtility.GetMessageText(line, keyword);
                         break;
                     case CurrentSection.Einsatzplan:
                         operation.OperationPlan = ParserUtility.GetMessageText(line, keyword);
