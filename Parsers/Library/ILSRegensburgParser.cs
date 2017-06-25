@@ -47,6 +47,9 @@ namespace AlarmWorkflow.Parser.Library
             lines = Utilities.Trim(lines);
             CurrentSection section = CurrentSection.AHeader;
             bool keywordsOnly = true;
+            bool multiLineProperties = false;
+            string keyword = "";
+            string prefix = "";
             for (int i = 0; i < lines.Length; i++)
             {
                 try
@@ -56,36 +59,41 @@ namespace AlarmWorkflow.Parser.Library
                     {
                         continue;
                     }
-                    if (GetSection(line.Trim(), ref section, ref keywordsOnly))
+                    if (GetSection(line.Trim(), ref section, ref keywordsOnly, ref multiLineProperties))
                     {
                         continue;
                     }
 
                     string msg = line;
-                    string prefix = "";
 
                     // Make the keyword check - or not (depends on the section we are in; see above)
-                    string keyword = "";
+                    if (!multiLineProperties)
+                    {
+                        prefix = "";
+                    }
                     if (keywordsOnly)
                     {
-                        if (!ParserUtility.StartsWithKeyword(line, _keywords, out keyword))
+                        bool foundKeyword = ParserUtility.StartsWithKeyword(line, _keywords, out keyword);
+                        if (!foundKeyword && !multiLineProperties)
                         {
                             continue;
                         }
-
-                        int x = line.IndexOf(':');
-                        if (x == -1)
+                        if (foundKeyword)
                         {
-                            // If there is no colon found (may happen occasionally) then simply remove the length of the keyword from the beginning
-                            prefix = keyword;
-                            msg = line.Remove(0, prefix.Length).Trim();
+                            int x = line.IndexOf(':');
+                            if (x == -1)
+                            {
+                                // If there is no colon found (may happen occasionally) then simply remove the length of the keyword from the beginning
+                                prefix = keyword;
+                                msg = line.Remove(0, prefix.Length).Trim();
+                            }
+                            else
+                            {
+                                prefix = line.Substring(0, x);
+                                msg = line.Substring(x + 1).Trim();
+                            }
+                            prefix = prefix.Trim().ToUpperInvariant();
                         }
-                        else
-                        {
-                            prefix = line.Substring(0, x);
-                            msg = line.Substring(x + 1).Trim();
-                        }
-                        prefix = prefix.Trim().ToUpperInvariant();
                     }
 
                     // Parse each section
@@ -153,8 +161,9 @@ namespace AlarmWorkflow.Parser.Library
                                             operation.Einsatzort.Property = msg;
                                         }
                                         break;
+                                    case "ABSCHNITT":
                                     case "KREUZUNG":
-                                        operation.Einsatzort.Intersection = msg;
+                                        operation.Einsatzort.Intersection += msg;
                                         break;
                                     case "KOORDINATE":
                                         Regex r = new Regex(@"\d+");
@@ -227,6 +236,7 @@ namespace AlarmWorkflow.Parser.Library
                 {
                     Logger.Instance.LogFormat(LogType.Warning, this, "Error while parsing line '{0}'. The error message was: {1}", i, ex.Message);
                 }
+                
             }
             return operation;
         }
@@ -235,11 +245,12 @@ namespace AlarmWorkflow.Parser.Library
 
         #region Methods
 
-        private bool GetSection(String line, ref CurrentSection section, ref bool keywordsOnly)
+        private bool GetSection(String line, ref CurrentSection section, ref bool keywordsOnly, ref bool multiLineProperties)
         {
             if (line.Contains("MITTEILER"))
             {
                 section = CurrentSection.BMitteiler;
+                multiLineProperties = false;
                 keywordsOnly = true;
                 return true;
             }
@@ -247,29 +258,35 @@ namespace AlarmWorkflow.Parser.Library
             {
                 section = CurrentSection.CEinsatzort;
                 keywordsOnly = true;
+                multiLineProperties = true;
                 return true;
             }
             if (line.Contains("EINSATZGRUND"))
             {
                 section = CurrentSection.DEinsatzgrund;
+                multiLineProperties = false;
                 keywordsOnly = true;
                 return true;
             }
             if (line.Contains("EINSATZMITTEL"))
             {
                 section = CurrentSection.EEinsatzmittel;
+
+                multiLineProperties = false;
                 keywordsOnly = true;
                 return true;
             }
             if (line.Contains("BEMERKUNG"))
             {
                 section = CurrentSection.FBemerkung;
+                multiLineProperties = false;
                 keywordsOnly = false;
                 return true;
             }
             if (line.Contains("ENDE ALARMFAX — V2.0"))
             {
                 section = CurrentSection.GFooter;
+                multiLineProperties = false;
                 keywordsOnly = false;
                 return true;
             }
