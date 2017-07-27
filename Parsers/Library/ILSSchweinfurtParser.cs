@@ -1,4 +1,4 @@
-﻿// This file is part of AlarmWorkflow.
+// This file is part of AlarmWorkflow.
 // 
 // AlarmWorkflow is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -14,9 +14,12 @@
 // along with AlarmWorkflow.  If not, see <http://www.gnu.org/licenses/>.
 
 using System;
+using System.Globalization;
+using System.Text.RegularExpressions;
 using AlarmWorkflow.Shared.Core;
 using AlarmWorkflow.Shared.Diagnostics;
 using AlarmWorkflow.Shared.Extensibility;
+using GeoUtility.GeoSystem;
 
 namespace AlarmWorkflow.Parser.Library
 {
@@ -27,7 +30,7 @@ namespace AlarmWorkflow.Parser.Library
 
         private static readonly string[] Keywords = new[]
             {
-                "ABSENDER", "FAX", "TERMIN", "EINSATZN.", "NAME", "STRAßE", "HAUS-NR.", "ABSCHNITT","ORTSTEIL", "ORT", "OBJEKT", "EINSATZPLAN",
+                "ABSENDER", "FAX", "TERMIN", "EINSATZN.", "NAME", "STRAßE", "HAUS-NR.", "ABSCHNITT", "ORTSTEIL", "ORT", "KOORDINATE", "OBJEKT", "EINSATZPLAN",
                 "STATION", "SCHLAGWORT", "STICHWORT", "AUSSTATTUNG"
             };
 
@@ -83,6 +86,7 @@ namespace AlarmWorkflow.Parser.Library
             lines = Utilities.Trim(lines);
             CurrentSection section = CurrentSection.AHeader;
             bool keywordsOnly = true;
+            NumberFormatInfo nfi = new NumberFormatInfo { NumberDecimalSeparator = "." };
             for (int i = 0; i < lines.Length; i++)
             {
                 try
@@ -206,6 +210,20 @@ namespace AlarmWorkflow.Parser.Library
                                             }
                                         }
                                         break;
+                                    case "KOORDINATE":
+                                        
+                                        Regex r = new Regex(@"\d+");
+                                        var matches = r.Matches(line);
+                                        if (matches.Count > 2)
+                                        {
+                                            int rechts = Convert.ToInt32(matches[0].Value);
+                                            int hoch = Convert.ToInt32(matches[1].Value);
+                                            GaussKrueger gauss = new GaussKrueger(rechts, hoch);
+                                            Geographic geo = (Geographic)gauss;
+                                            operation.Einsatzort.GeoLatitude = geo.Latitude;
+                                            operation.Einsatzort.GeoLongitude = geo.Longitude;
+                                        }
+                                        break;  
                                     case "OBJEKT":
                                         operation.Einsatzort.Property = msg;
                                         break;
