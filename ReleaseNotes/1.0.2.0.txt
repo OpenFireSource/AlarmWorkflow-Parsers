@@ -10,7 +10,6 @@ Hinzugefügt:
 Bearbeitet
   * ILS FFB Abschnitt wird ausgelesen
   * ILS Amberg: Zielort
-  * ILS Erding & FFB: Koordinaten werden ausgelesen
+  * FEZ München Land, ILS Erding, Bayreuth, Straubing & FFB: Koordinaten werden ausgelesen
   * ILS Straubing optimiert
   * LFS Offenbach: Einsatzmittel werden ausgelesen
-  * FEZ München Land: Koordinaten werden ausgelesen

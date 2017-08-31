@@ -17,6 +17,9 @@ using System;
 using AlarmWorkflow.Shared.Core;
 using AlarmWorkflow.Shared.Diagnostics;
 using AlarmWorkflow.Shared.Extensibility;
+using System.Text.RegularExpressions;
+using GeoUtility.GeoSystem;
+using System.Globalization;
 
 namespace AlarmWorkflow.Parser.Library
 {
@@ -24,10 +27,11 @@ namespace AlarmWorkflow.Parser.Library
     sealed class ILSSchweinfurtParser : IParser
     {
         #region Constants
+        private static Regex r = new Regex("X[:=\\s]*([\\d.]+)\\s*Y[:=\\s]*([\\d.]+)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
         private static readonly string[] Keywords = new[]
             {
-                "ABSENDER", "FAX", "TERMIN", "EINSATZN.", "NAME", "STRAßE", "HAUS-NR.", "ABSCHNITT","ORTSTEIL", "ORT", "OBJEKT", "EINSATZPLAN",
+                "ABSENDER", "FAX", "TERMIN", "EINSATZN.", "NAME", "STRAßE", "HAUS-NR.", "ABSCHNITT","ORTSTEIL","KOORDINATE", "ORT", "OBJEKT", "EINSATZPLAN",
                 "STATION", "SCHLAGWORT", "STICHWORT", "AUSSTATTUNG"
             };
 
@@ -204,6 +208,19 @@ namespace AlarmWorkflow.Parser.Library
                                                 // Ignore everything after the dash
                                                 operation.Einsatzort.City = operation.Einsatzort.City.Substring(0, dashIndex).Trim();
                                             }
+                                        }
+                                        break;
+                                    case "KOORDINATE":
+                                        Match result = r.Match(msg);
+                                        if (result.Success)
+                                        {
+                                            double geoX = 0, geoY = 0;
+                                            geoX = double.Parse(result.Groups[1].Value, CultureInfo.InvariantCulture);
+                                            geoY = double.Parse(result.Groups[2].Value, CultureInfo.InvariantCulture);
+                                            GaussKrueger gauss = new GaussKrueger(geoX, geoY);
+                                            Geographic geo = (Geographic)gauss;
+                                            operation.Einsatzort.GeoLatitude = geo.Latitude;
+                                            operation.Einsatzort.GeoLongitude = geo.Longitude;
                                         }
                                         break;
                                     case "OBJEKT":

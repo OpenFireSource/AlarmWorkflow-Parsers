@@ -17,6 +17,8 @@ using System;
 using AlarmWorkflow.Shared.Core;
 using AlarmWorkflow.Shared.Diagnostics;
 using AlarmWorkflow.Shared.Extensibility;
+using GeoUtility.GeoSystem;
+using System.Globalization;
 
 namespace AlarmWorkflow.Parser.Library
 {
@@ -27,11 +29,13 @@ namespace AlarmWorkflow.Parser.Library
 
         private static readonly string[] Keywords = new[]
             {
-                "Absender","Einsatznummer","Name","Telefon","Straße",
+                "Absender","Einsatznummer","Name","Telefon","Straße","Einsatzort Position X", "Einsatzort Position Y",
                 "Abschnitt","Ort","Objekt","Kreuzung","Station","Schlagwort.",
                 "Stichwort","- Brand","- Rettungsdienst","- Sonstiges",
                 "- THL","- Info","Einsatzmittelname","gef. Geräte"
             };
+        private double geoX;
+        private double geoY;
 
         #endregion
 
@@ -88,7 +92,7 @@ namespace AlarmWorkflow.Parser.Library
             OperationResource last = new OperationResource();
 
             lines = Utilities.Trim(lines);
-
+            NumberFormatInfo nfi = new NumberFormatInfo { NumberDecimalSeparator = "." };
             CurrentSection section = CurrentSection.AHeader;
             bool keywordsOnly = true;
             for (int i = 0; i < lines.Length; i++)
@@ -210,7 +214,16 @@ namespace AlarmWorkflow.Parser.Library
                                     case "STATION":
                                         operation.CustomData["Einsatzort Station"] = ParserUtility.GetTextBetween(msg, null, "Objektnummer");
                                         operation.OperationPlan = ParserUtility.GetMessageText(ParserUtility.GetTextBetween(msg, "Objektnummer"), "");
-                                        
+                                        break;
+                                    case "Einsatzort Position X":
+                                        geoX = double.Parse(msg, nfi);
+                                        break;
+                                    case "Einsatzort Position Y":
+                                        geoY = double.Parse(msg, nfi);
+                                        GaussKrueger gauss = new GaussKrueger(geoX, geoY);
+                                        Geographic geo = (Geographic)gauss;
+                                        operation.Einsatzort.GeoLatitude = geo.Latitude;
+                                        operation.Einsatzort.GeoLongitude = geo.Longitude;
                                         break;
                                 }
                             }
