@@ -1,4 +1,4 @@
-﻿// This file is part of AlarmWorkflow.
+// This file is part of AlarmWorkflow.
 // 
 // AlarmWorkflow is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -14,6 +14,8 @@
 // along with AlarmWorkflow.  If not, see <http://www.gnu.org/licenses/>.
 
 using System;
+using System.Globalization;
+using System.Text.RegularExpressions;
 using AlarmWorkflow.Shared.Core;
 using AlarmWorkflow.Shared.Diagnostics;
 using AlarmWorkflow.Shared.Extensibility;
@@ -31,7 +33,8 @@ namespace AlarmWorkflow.Parser.Library
 
         private static readonly string[] Keywords = new[]
             {
-                "ABSENDER", "FAX", "TERMIN", "EINSATZN.", "NAME", "STRAßE", "HAUS-NR.", "ABSCHNITT","ORTSTEIL","KOORDINATE", "ORT", "OBJEKT", "EINSATZPLAN",
+
+                "ABSENDER", "FAX", "TERMIN", "EINSATZN.", "NAME", "STRAßE", "HAUS-NR.", "ABSCHNITT", "ORTSTEIL", "KOORDINATE", "ORT", "OBJEKT", "EINSATZPLAN",
                 "STATION", "SCHLAGWORT", "STICHWORT", "AUSSTATTUNG"
             };
 
@@ -87,6 +90,7 @@ namespace AlarmWorkflow.Parser.Library
             lines = Utilities.Trim(lines);
             CurrentSection section = CurrentSection.AHeader;
             bool keywordsOnly = true;
+            NumberFormatInfo nfi = new NumberFormatInfo { NumberDecimalSeparator = "." };
             for (int i = 0; i < lines.Length; i++)
             {
                 try
@@ -217,7 +221,7 @@ namespace AlarmWorkflow.Parser.Library
                                             double geoX = 0, geoY = 0;
                                             geoX = double.Parse(result.Groups[1].Value, CultureInfo.InvariantCulture);
                                             geoY = double.Parse(result.Groups[2].Value, CultureInfo.InvariantCulture);
-                                            GaussKrueger gauss = new GaussKrueger(geoX, geoY);
+                                            GaussKrueger gauss = new GaussKrueger(geoX, geoY);   
                                             Geographic geo = (Geographic)gauss;
                                             operation.Einsatzort.GeoLatitude = geo.Latitude;
                                             operation.Einsatzort.GeoLongitude = geo.Longitude;
