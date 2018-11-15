@@ -29,7 +29,7 @@ namespace AlarmWorkflow.Parser.Library
 
         private static readonly string[] Keywords = new[]
             {
-               "", "ABSENDER", "FAX", "TERMIN", "EINSATZNUMMER", "NAME", "STRAßE", "ORT", "OBJEKT","STATION", "SCHLAGW", 
+               "", "ABSENDER", "FAX", "TERMIN", "EINSATZNUMMER", "NAME", "STRAßE", "HAUS-NR.", "ORT", "OBJEKT","STATION", "SCHLAGW", 
                 "EINSATZMITTEL", "ALARMIERT", "AUS"
             };
 
@@ -187,7 +187,8 @@ namespace AlarmWorkflow.Parser.Library
             OperationResource last = new OperationResource();
 
             lines = Utilities.Trim(lines);
-
+            string streetInfo = string.Empty;
+            string street, streetNumber, appendix;
             CurrentSection section = CurrentSection.AHeader;
             bool keywordsOnly = true;
             InnerSection innerSection = InnerSection.AStraße;
@@ -274,11 +275,13 @@ namespace AlarmWorkflow.Parser.Library
                                     case "STRAßE":
                                         {
                                             innerSection = InnerSection.AStraße;
-                                            string street, streetNumber, appendix;
-                                            ParserUtility.AnalyzeStreetLine(msg, out street, out streetNumber, out appendix);
-                                            operation.CustomData["Einsatzort Zusatz"] = appendix;
-                                            operation.Einsatzort.Street = street;
-                                            operation.Einsatzort.StreetNumber = streetNumber;
+                                            streetInfo += msg;
+                                        }
+                                        break;
+                                    case "HAUS-NR.":
+                                        {
+                                            innerSection = InnerSection.AStraße;
+                                            streetInfo = string.Format("{0} {1}",streetInfo, line);
                                         }
                                         break;
                                     case "ORT":
@@ -307,7 +310,7 @@ namespace AlarmWorkflow.Parser.Library
                                         {
                                             case InnerSection.AStraße:
                                                 //Quite dirty because of Streetnumber. Looking for better solution
-                                                operation.Einsatzort.Street += msg;
+                                                streetInfo += msg;
                                                 break;
                                             case InnerSection.BOrt:
                                                 operation.Einsatzort.City += msg;
@@ -330,8 +333,6 @@ namespace AlarmWorkflow.Parser.Library
                                     case "STRAßE":
                                         {
                                             innerSection = InnerSection.AStraße;
-
-                                            string street, streetNumber, appendix;
                                             ParserUtility.AnalyzeStreetLine(msg, out street, out streetNumber, out appendix);
                                             operation.CustomData["Zielort Zusatz"] = appendix;
                                             operation.Zielort.Street = street;
@@ -467,6 +468,11 @@ namespace AlarmWorkflow.Parser.Library
                     operation.Zielort.City = operation.Zielort.City.Substring(0, dashIndex).Trim();
                 }
             }
+
+            ParserUtility.AnalyzeStreetLine(streetInfo, out street, out streetNumber, out appendix);
+            operation.CustomData["Einsatzort Zusatz"] = appendix;
+            operation.Einsatzort.Street = street;
+            operation.Einsatzort.StreetNumber = streetNumber;
             return operation;
         }
 

@@ -1,0 +1,15 @@
+﻿AlarmWorkflow - Parser v1.0.2.0 Release Notes
+=============================================
+
+Änderungen seit v0.9.9.0
+------------------------
+
+Hinzugefügt:
+  * ILS Hochfranken
+
+Bearbeitet
+  * ILS FFB Abschnitt wird ausgelesen
+  * ILS Amberg: Zielort
+  * FEZ München Land, ILS Erding, Bayreuth, Straubing & FFB: Koordinaten werden ausgelesen
+  * ILS Straubing optimiert
+  * LFS Offenbach: Einsatzmittel werden ausgelesen

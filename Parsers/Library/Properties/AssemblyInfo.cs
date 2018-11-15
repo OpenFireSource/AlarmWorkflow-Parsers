@@ -16,6 +16,7 @@
 using System.Reflection;
 using System.Runtime.InteropServices;
 using AlarmWorkflow.Shared.Core;
+using System.Runtime.CompilerServices;
 
 // General Information about an assembly is controlled through the following 
 // set of attributes. Change these attribute values to modify the information
@@ -51,3 +52,4 @@ using AlarmWorkflow.Shared.Core;
 [assembly: AssemblyFileVersion("0.9.8.0")]
 
 [assembly: AlarmWorkflowPackage()]
+[assembly: InternalsVisibleToAttribute("AlarmWorkflow.Parser.Library.Test")]

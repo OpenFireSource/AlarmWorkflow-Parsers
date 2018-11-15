@@ -1,4 +1,4 @@
-﻿// This file is part of AlarmWorkflow.
+// This file is part of AlarmWorkflow.
 // 
 // AlarmWorkflow is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -16,18 +16,26 @@
 using System;
 using AlarmWorkflow.Shared.Core;
 using AlarmWorkflow.Shared.Extensibility;
+using System.Text.RegularExpressions;
+using System.Globalization;
+
 
 namespace AlarmWorkflow.Parser.Library
 {
     [Export("LFSOffenbachParser", typeof(IParser))]
     class LFSOffenbachParser : IParser
     {
+        #region Static
+
+        private static readonly Regex _coordinatenRegex = new Regex(@"POINT \((\d+.\d+) (\d+.\d+)\)");
+
+        #endregion
+
         #region Fields
 
         private readonly string[] _keywords = new string[] {
-            "ALARMAUSDRUCK","EINSATZNUMMER","ORT ","STRASSE"
-            ,"OBJEKT ","EINSATZPLANNUMMER","DIAGNOSE",
-            "EINSATZSTICHWORT","BEMERKUNGEN","DAS FAX WURDE", "AUSDRUCK VOM", "MELDENDE(R)"
+            "Einsatznummer","Objekt","Ort:","Ortsteil","Straße","Koordinaten",
+            "Bemerkung","Meldebild","Einsatzanlass","Zielort", "Zeiten", "EM"
             };
 
         #endregion
@@ -42,61 +50,78 @@ namespace AlarmWorkflow.Parser.Library
             foreach (var line in lines)
             {
                 string keyword;
+                string msg;
                 if (ParserUtility.StartsWithKeyword(line, _keywords, out keyword))
                 {
-                    switch (keyword)
+                    msg = ParserUtility.GetMessageText(line, keyword);
+                    switch (keyword.ToUpperInvariant())
                     {
-                        case "EINSATZNUMMER": { section = CurrentSection.BeNr; break; }
-                        case "ORT ": { section = CurrentSection.CEinsatzort; break; }
-                        case "STRASSE": { section = CurrentSection.DStraße; break; }
-                        case "OBJEKT ": { section = CurrentSection.FObjekt; break; }
-                        case "EINSATZPLANNUMMER": { section = CurrentSection.GEinsatzplan; break; }
-                        case "DIAGNOSE": { section = CurrentSection.HMeldebild; break; }
-                        case "EINSATZSTICHWORT": { section = CurrentSection.JEinsatzstichwort; break; }
-                        case "MELDENDE(R)": { section = CurrentSection.LMeldender; break; }
-                        case "BEMERKUNGEN": { section = CurrentSection.KHinweis; break; }
-                        case "DAS FAX WURDE": { section = CurrentSection.OFaxtime; break; }
-                        case "AUSDRUCK VOM": { section = CurrentSection.MEnde; break; }
+                        case "EINSATZNUMMER":
+                            {
+                                operation.OperationNumber = msg;
+                                break;
+                            }
+                        case "ORT:":
+                            {
+                                operation.Einsatzort.City = msg;
+                                break;
+                            }
+                        case "STRAßE":
+                            {
+                                string street;
+                                string streetNumber;
+                                string appendix;
+                                ParserUtility.AnalyzeStreetLine(msg, out street, out streetNumber, out appendix);
+                                operation.CustomData["Einsatzort Zusatz"] = appendix;
+                                operation.Einsatzort.Street = street;
+                                operation.Einsatzort.StreetNumber = streetNumber;
+                                break;
+                            }
+                        case "OBJEKT":
+                            {
+                                operation.Einsatzort.Property = msg;
+                                break;
+                            }
+                        case "BEMERKUNG":
+                            {
+                                operation.Comment = msg; break;
+                            }
+                        case "KOORDINATEN":
+                            {
+                                if (_coordinatenRegex.IsMatch(msg))
+                                {
+                                    Match m = _coordinatenRegex.Match(msg);
+                                    operation.Einsatzort.GeoLatitude = Convert.ToDouble(m.Groups[1].Value, CultureInfo.InvariantCulture);
+                                    operation.Einsatzort.GeoLongitude = Convert.ToDouble(m.Groups[2].Value, CultureInfo.InvariantCulture);
+                                }
+                                break;
+                            }
+                        case "EINSATZANLASS":
+                            {
+                                operation.Keywords.EmergencyKeyword = msg; break;
+                            }
+                        case "MELDEBILD":
+                            {
+                                operation.Picture = msg; break;
+                            }
+                        case "ZIELORT":
+                            {
+                                break;
+                            }
+                        case "ZEITEN":
+                            {
+                                break;
+                            }
+                        case "EM":
+                            {
+                                Match alarm = Regex.Match(line, @"[1-9]{1,2}-[1-9]{2}-[1-9]{1}");
+                                if (alarm.Success)
+                                {
+                                    operation.Resources.Add(new OperationResource { FullName = alarm.Groups[0].Value });
+                                }
+                                break;
+                            }
                     }
-                }
-                else
-                {
-                    section = CurrentSection.MEnde;
-                }
-
-                switch (section)
-                {
-                    case CurrentSection.BeNr:
-                        operation.OperationNumber = ParserUtility.GetMessageText(line, keyword);
-                        break;
-                    case CurrentSection.CEinsatzort:
-                        string txt = ParserUtility.GetMessageText(line, keyword);
-                        operation.Einsatzort.ZipCode = ParserUtility.ReadZipCodeFromCity(txt);
-                        operation.Einsatzort.City = txt.Remove(0, operation.Einsatzort.ZipCode.Length).Trim();
-                        break;
-                    case CurrentSection.DStraße:
-                        operation.Einsatzort.Street = ParserUtility.GetMessageText(line, keyword);
-                        break;
-                    case CurrentSection.FObjekt:
-                        operation.Einsatzort.Property = ParserUtility.GetMessageText(line, keyword);
-                        break;
-                    case CurrentSection.GEinsatzplan:
-                        operation.OperationPlan = ParserUtility.GetMessageText(line, keyword);
-                        break;
-                    case CurrentSection.HMeldebild:
-                        operation.Picture = ParserUtility.GetMessageText(line, keyword);
-                        break;
-                    case CurrentSection.JEinsatzstichwort:
-                        operation.Keywords.EmergencyKeyword = ParserUtility.GetMessageText(line, keyword);
-                        break;
-                    case CurrentSection.KHinweis:
-                        operation.Comment = operation.Comment.AppendLine(ParserUtility.GetMessageText(line, keyword));
-                        break;
-                    case CurrentSection.OFaxtime:
-                        operation.Timestamp = ParserUtility.ReadFaxTimestamp(line, DateTime.Now);
-                        break;
-                    case CurrentSection.MEnde:
-                        break;
                 }
             }
 
@@ -110,17 +135,7 @@ namespace AlarmWorkflow.Parser.Library
         private enum CurrentSection
         {
             AAnfang,
-            BeNr,
-            CEinsatzort,
-            DStraße,
-            FObjekt,
-            GEinsatzplan,
-            HMeldebild,
-            JEinsatzstichwort,
-            KHinweis,
-            LMeldender,
-            MEnde,
-            OFaxtime
+            BEnde
         }
 
         #endregion

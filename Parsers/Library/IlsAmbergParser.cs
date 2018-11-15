@@ -14,9 +14,11 @@
 // along with AlarmWorkflow.  If not, see <http://www.gnu.org/licenses/>.
 
 using System;
+using System.Globalization;
 using AlarmWorkflow.Shared.Core;
 using AlarmWorkflow.Shared.Diagnostics;
 using AlarmWorkflow.Shared.Extensibility;
+using GeoUtility.GeoSystem;
 
 namespace AlarmWorkflow.Parser.Library
 {
@@ -29,7 +31,7 @@ namespace AlarmWorkflow.Parser.Library
         {
             "Einsatznummer", "Name", "Rufnummer", "Straße", "Haus-Nr.",
             "Ort", "Objekt","Station", "Schlagw.",
-            "Stichwort", "Alarmiert", "Gerät"
+            "Stichwort", "Alarmiert", "Gerät", "X","Y"
         };
 
         #endregion
@@ -44,6 +46,8 @@ namespace AlarmWorkflow.Parser.Library
             lines = Utilities.Trim(lines);
             CurrentSection section = CurrentSection.AHeader;
             bool keywordsOnly = true;
+            double geoX = 0, geoY = 0;
+            NumberFormatInfo nfi = new NumberFormatInfo { NumberDecimalSeparator = "." };
             for (int i = 0; i < lines.Length; i++)
             {
                 try
@@ -98,18 +102,33 @@ namespace AlarmWorkflow.Parser.Library
                                 }
                             }
                             break;
+                        case CurrentSection.CKoordinaten:
+                            switch (prefix)
+                            {
+                                case "X":
+                                    geoX = double.Parse(msg, nfi);
+                                    break;
+                                case "Y":
+                                    geoY = double.Parse(msg, nfi);
+                                    GaussKrueger gauss = new GaussKrueger(geoX, geoY);
+                                    Geographic geo = (Geographic)gauss;
+                                    operation.Einsatzort.GeoLatitude = geo.Latitude;
+                                    operation.Einsatzort.GeoLongitude = geo.Longitude;
+                                    break;
+                            }
+                            break;
                         case CurrentSection.BMitteiler:
                             switch (prefix)
                             {
                                 case "NAME":
-                                    operation.Messenger = msg; 
+                                    operation.Messenger = msg;
                                     break;
                                 case "RUFNUMMER":
                                     operation.Messenger = operation.Messenger.AppendLine(string.Format("Nr.: {0}", msg));
                                     break;
                             }
                             break;
-                        case CurrentSection.CEinsatzort:
+                        case CurrentSection.DEinsatzort:
                             {
                                 switch (prefix)
                                 {
@@ -121,10 +140,18 @@ namespace AlarmWorkflow.Parser.Library
                                         break;
                                     case "ORT":
                                         {
-                                            operation.Einsatzort.City = msg;
+                                            operation.Einsatzort.ZipCode = ParserUtility.ReadZipCodeFromCity(msg);
+                                            if (!string.IsNullOrWhiteSpace(operation.Einsatzort.ZipCode))
+                                            {
+                                                operation.Einsatzort.City = msg.Replace(operation.Einsatzort.ZipCode, "").Trim();
+                                            }
+                                            else
+                                            {
+                                                operation.Einsatzort.City = msg;
+                                            }
                                             // The City-text often contains a dash after which the administrative city appears multiple times (like "City A - City A City A").
                                             // However we can (at least with google maps) omit this information without problems!
-                                            int dashIndex = msg.IndexOf('-');
+                                            int dashIndex = operation.Einsatzort.City.IndexOf('-');
                                             if (dashIndex != -1)
                                             {
                                                 // Ignore everything after the dash
@@ -141,7 +168,37 @@ namespace AlarmWorkflow.Parser.Library
                                 }
                             }
                             break;
-                        case CurrentSection.DEinsatzgrund:
+                        case CurrentSection.EZielort:
+                            {
+                                switch (prefix)
+                                {
+                                    case "STRAßE":
+                                        operation.Zielort.Street = msg;
+                                        break;
+                                    case "HAUS-NR.":
+                                        operation.Zielort.StreetNumber = msg;
+                                        break;
+                                    case "ORT":
+                                        operation.Zielort.ZipCode = ParserUtility.ReadZipCodeFromCity(msg);
+                                        if (!string.IsNullOrWhiteSpace(operation.Zielort.ZipCode))
+                                        {
+                                            operation.Zielort.City = msg.Replace(operation.Zielort.ZipCode, "").Trim();
+                                        }
+                                        else
+                                        {
+                                            operation.Zielort.City = msg;
+                                        }
+                                        break;
+                                    case "OBJEKT":
+                                        operation.Zielort.Property = msg;
+                                        break;
+                                    case "STATION":
+                                        operation.CustomData["Zielort Station"] = msg;
+                                        break;
+                                }
+                            }
+                            break;
+                        case CurrentSection.FEinsatzgrund:
                             {
                                 switch (prefix)
                                 {
@@ -154,7 +211,7 @@ namespace AlarmWorkflow.Parser.Library
                                 }
                             }
                             break;
-                        case CurrentSection.FEinsatzmittel:
+                        case CurrentSection.HEinsatzmittel:
                             {
                                 switch (prefix)
                                 {
@@ -178,7 +235,7 @@ namespace AlarmWorkflow.Parser.Library
                                 }
                             }
                             break;
-                        case CurrentSection.EBemerkungen:
+                        case CurrentSection.GBemerkungen:
                             {
                                 operation.Picture = operation.Picture.AppendLine(msg);
                             }
@@ -208,27 +265,39 @@ namespace AlarmWorkflow.Parser.Library
                 keywordsOnly = true;
                 return true;
             }
+            if (line.Contains("KOORDINATEN"))
+            {
+                section = CurrentSection.CKoordinaten;
+                keywordsOnly = true;
+                return true;
+            }
             if (line.Contains("EINSATZORT"))
             {
-                section = CurrentSection.CEinsatzort;
+                section = CurrentSection.DEinsatzort;
+                keywordsOnly = true;
+                return true;
+            }
+            if (line.Contains("ZIELORT"))
+            {
+                section = CurrentSection.EZielort;
                 keywordsOnly = true;
                 return true;
             }
             if (line.Contains("EINSATZGRUND"))
             {
-                section = CurrentSection.DEinsatzgrund;
+                section = CurrentSection.FEinsatzgrund;
                 keywordsOnly = true;
                 return true;
             }
             if (line.Contains("BEMERKUNGEN"))
             {
-                section = CurrentSection.EBemerkungen;
+                section = CurrentSection.GBemerkungen;
                 keywordsOnly = false;
                 return true;
             }
             if (line.Contains("EINSATZMITTEL"))
             {
-                section = CurrentSection.FEinsatzmittel;
+                section = CurrentSection.HEinsatzmittel;
                 keywordsOnly = true;
                 return true;
             }
@@ -249,10 +318,12 @@ namespace AlarmWorkflow.Parser.Library
         {
             AHeader,
             BMitteiler,
-            CEinsatzort,
-            DEinsatzgrund,
-            EBemerkungen,
-            FEinsatzmittel,
+            CKoordinaten,
+            DEinsatzort,
+            EZielort,
+            FEinsatzgrund,
+            GBemerkungen,
+            HEinsatzmittel,
             ZFooter
         }
 

@@ -1,4 +1,4 @@
-// This file is part of AlarmWorkflow.
+Ôªø// This file is part of AlarmWorkflow.
 // 
 // AlarmWorkflow is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -14,80 +14,28 @@
 // along with AlarmWorkflow.  If not, see <http://www.gnu.org/licenses/>.
 
 using System;
-using System.Globalization;
-using System.Text.RegularExpressions;
 using AlarmWorkflow.Shared.Core;
 using AlarmWorkflow.Shared.Diagnostics;
 using AlarmWorkflow.Shared.Extensibility;
-using GeoUtility.GeoSystem;
 
 namespace AlarmWorkflow.Parser.Library
 {
-    [Export("ILSPassauParser", typeof(IParser))]
-    class ILSPassauParser : IParser
+    [Export("IlsBambergForchheimParser", typeof(IParser))]
+    sealed class IlsBambergForchheimParser : IParser
     {
-
         #region Constants
 
-        private static readonly string[] Keywords = new[] { "", "KOORDINATE", "EINSATZNUMMER", "ABSENDER", "NAME", "STRAﬂE", "ORT", "OBJEKT", "KREUZUNG", "STICHWORT B", "STICHWORT SO", "PRIO.", "SCHLAGW", "EINSATZMITTELNAME" };
+        private static readonly string[] Keywords = new[]
+            {
+                "Absender","Einsatznummer","Termin","Name","Rufnummer","Stra√üe",
+                "Abschnitt","Ort","Objekt","Kreuzung","Station","Schlagwort.",
+                "Stichwort","Prio.","- Brand","- Rettungsdienst","- Sonstiges",
+                "- THL","- Info","Einsatzmittelname","gef. Ger√§te"
+            };
 
         #endregion
 
         #region Methods
-
-        private DateTime ReadFaxTimestamp(string line, DateTime fallback)
-        {
-            DateTime date = fallback;
-            TimeSpan timestamp = date.TimeOfDay;
-
-            Match dt = Regex.Match(line, @"(0[1-9]|[12][0-9]|3[01])[- /.](0[1-9]|1[012])[- /.](19|20)\d\d");
-            Match ts = Regex.Match(line, @"([01]?[0-9]|2[0-3]):[0-5][0-9]");
-            if (dt.Success)
-            {
-                DateTime.TryParse(dt.Value, out date);
-            }
-            if (ts.Success)
-            {
-                TimeSpan.TryParse(ts.Value, out timestamp);
-            }
-
-            return new DateTime(date.Year, date.Month, date.Day, timestamp.Hours, timestamp.Minutes, timestamp.Seconds, timestamp.Milliseconds, DateTimeKind.Local);
-        }
-
-        private bool StartsWithKeyword(string line, out string keyword)
-        {
-            line = line.ToUpperInvariant();
-            foreach (string kwd in Keywords)
-            {
-                if (line.StartsWith(kwd))
-                {
-                    keyword = kwd;
-                    return true;
-                }
-            }
-            keyword = null;
-            return false;
-        }
-
-        /// <summary>
-        /// Attempts to read the zip code from the city, if available.
-        /// </summary>
-        /// <param name="cityText"></param>
-        /// <returns>The zip code of the city. -or- null, if there was no.</returns>
-        private string ReadZipCodeFromCity(string cityText)
-        {
-            string zipCode = "";
-            foreach (char c in cityText)
-            {
-                if (char.IsNumber(c))
-                {
-                    zipCode += c;
-                    continue;
-                }
-                break;
-            }
-            return zipCode;
-        }
 
         private bool GetSection(String line, ref CurrentSection section, ref bool keywordsOnly)
         {
@@ -100,7 +48,6 @@ namespace AlarmWorkflow.Parser.Library
             if (line.Contains("EINSATZORT"))
             {
                 section = CurrentSection.CEinsatzort;
-                //Is not true but only works that way
                 keywordsOnly = true;
                 return true;
             }
@@ -130,6 +77,7 @@ namespace AlarmWorkflow.Parser.Library
             }
             return false;
         }
+
         #endregion
 
         #region IParser Members
@@ -143,8 +91,6 @@ namespace AlarmWorkflow.Parser.Library
 
             CurrentSection section = CurrentSection.AHeader;
             bool keywordsOnly = true;
-
-            InnerSection innerSection = InnerSection.AStraﬂe;
             for (int i = 0; i < lines.Length; i++)
             {
                 try
@@ -155,15 +101,10 @@ namespace AlarmWorkflow.Parser.Library
                         continue;
                     }
 
-                    // Try to parse the header and extract date and time if possible
-                    operation.Timestamp = ReadFaxTimestamp(line, operation.Timestamp);
-
-
                     if (GetSection(line.Trim(), ref section, ref keywordsOnly))
                     {
                         continue;
                     }
-
                     string msg = line;
                     string prefix = "";
 
@@ -171,7 +112,7 @@ namespace AlarmWorkflow.Parser.Library
                     if (keywordsOnly)
                     {
                         string keyword;
-                        if (!StartsWithKeyword(line, out keyword))
+                        if (!ParserUtility.StartsWithKeyword(line, Keywords, out keyword))
                         {
                             continue;
                         }
@@ -199,9 +140,14 @@ namespace AlarmWorkflow.Parser.Library
                             {
                                 switch (prefix)
                                 {
+                                    case "ABSENDER":
+                                        operation.CustomData["Absender"] = msg;
+                                        break;
                                     case "EINSATZNUMMER":
-                                        operation.OperationNumber = ParserUtility.GetTextBetween(msg, null, "ALARMZEIT");
-                                        operation.Timestamp = ReadFaxTimestamp(ParserUtility.GetTextBetween(msg, "ALARMZEIT", null), DateTime.Now);
+                                        operation.OperationNumber = msg;
+                                        break;
+                                    case "TERMIN":
+                                        operation.Timestamp = ParserUtility.ReadFaxTimestamp(msg, DateTime.Now);
                                         break;
                                 }
                             }
@@ -214,17 +160,18 @@ namespace AlarmWorkflow.Parser.Library
                                     case "NAME":
                                         operation.Messenger = msg;
                                         break;
+                                    case "RUFNUMMER":
+                                        operation.CustomData["Rufnummer"] = msg;
+                                        break;
                                 }
                             }
                             break;
                         case CurrentSection.CEinsatzort:
                             {
-
                                 switch (prefix)
                                 {
-                                    case "STRAﬂE":
+                                    case "STRA√üE":
                                         {
-                                            innerSection = InnerSection.AStraﬂe;
                                             string street, streetNumber, appendix;
                                             ParserUtility.AnalyzeStreetLine(msg, out street, out streetNumber, out appendix);
                                             operation.CustomData["Einsatzort Zusatz"] = appendix;
@@ -233,11 +180,11 @@ namespace AlarmWorkflow.Parser.Library
                                         }
                                         break;
                                     case "ABSCHNITT":
+                                        operation.CustomData["Einsatzort Abschnitt"] = msg;
                                         break;
                                     case "ORT":
                                         {
-                                            innerSection = InnerSection.BOrt;
-                                            operation.Einsatzort.ZipCode = ReadZipCodeFromCity(msg);
+                                            operation.Einsatzort.ZipCode = ParserUtility.ReadZipCodeFromCity(msg);
                                             if (string.IsNullOrWhiteSpace(operation.Einsatzort.ZipCode))
                                             {
                                                 Logger.Instance.LogFormat(LogType.Warning, this, "Could not find a zip code for city '{0}'. Route planning may fail or yield wrong results!", operation.Einsatzort.City);
@@ -256,67 +203,47 @@ namespace AlarmWorkflow.Parser.Library
                                         }
                                         break;
                                     case "OBJEKT":
-                                        innerSection = InnerSection.CObjekt;
                                         operation.Einsatzort.Property = msg;
                                         break;
                                     case "KREUZUNG":
                                         operation.Einsatzort.Intersection = msg;
                                         break;
                                     case "STATION":
-                                        operation.CustomData.Add("Einsatzort Station:", msg);
-                                        break;
-                                    case "KOORDINATE":
-                                        Regex r = new Regex(@"\d+");
-                                        var matches = r.Matches(line);
-                                        if (matches.Count == 2)
-                                        {
-                                            int rechts = Convert.ToInt32(matches[0].Value);
-                                            int hoch = Convert.ToInt32(matches[1].Value);
-                                            GaussKrueger gauss = new GaussKrueger(rechts, hoch);
-                                            Geographic geo = (Geographic)gauss;
-                                            operation.Einsatzort.GeoLatitude = geo.Latitude;
-                                            operation.Einsatzort.GeoLongitude = geo.Longitude;
-                                        }
-                                        break;
-                                    default:
-                                        switch (innerSection)
-                                        {
-                                            case InnerSection.AStraﬂe:
-                                                //Quite dirty because of Streetnumber. Looking for better solution
-                                                operation.Einsatzort.Street += msg;
-                                                break;
-                                            case InnerSection.BOrt:
-                                                operation.Einsatzort.City += msg;
-                                                break;
-                                            case InnerSection.CObjekt:
-                                                operation.Einsatzort.Property += msg;
-                                                break;
-                                        }
+                                        operation.CustomData["Einsatzort Station"] = ParserUtility.GetTextBetween(msg, null, "Objektnummer");
+                                        operation.OperationPlan = ParserUtility.GetMessageText(ParserUtility.GetTextBetween(msg, "Objektnummer"), "");
+
                                         break;
                                 }
                             }
                             break;
-
                         case CurrentSection.DEinsatzgrund:
                             {
                                 switch (prefix)
                                 {
-                                    case "SCHLAGW.":
+                                    case "SCHLAGWORT.":
                                         operation.Keywords.Keyword = msg;
                                         break;
-                                    case "STICHWORT B":
-                                        operation.Keywords.B = ParserUtility.GetTextBetween(msg, null, "STICHWORT RD:");
-                                        operation.Keywords.R = ParserUtility.GetTextBetween(msg, "STICHWORT RD:", null);
-                                        break;
-                                    case "STICHWORT SO":
-                                        operation.Keywords.S = ParserUtility.GetTextBetween(msg, null, "STICHWORT TH:");
-                                        operation.Keywords.T = ParserUtility.GetTextBetween(msg, "STICHWORT TH:", "STICHWORT IN:");
-                                        operation.CustomData.Add("Stichwort IN:", ParserUtility.GetTextBetween(msg, "STICHWORT IN:", null));
+                                    case "STICHWORT":
+                                        operation.CustomData["Stichwort"] = msg;
                                         break;
                                     case "PRIO.":
-                                        operation.Priority = msg;
+                                        operation.CustomData["Prio."] = msg + " (1 = Notfall / 2 = dringend / 3 = nicht zeitkritisch)";
                                         break;
-
+                                    case "- BRAND":
+                                        operation.Keywords.B = msg;
+                                        break;
+                                    case "- RETTUNGSDIENST":
+                                        operation.Keywords.R = msg;
+                                        break;
+                                    case "- SONSTIGES":
+                                        operation.Keywords.S = msg;
+                                        break;
+                                    case "- THL":
+                                        operation.Keywords.T = msg;
+                                        break;
+                                    case "- INFO":
+                                        operation.CustomData["Info"] = msg;
+                                        break;
                                 }
                             }
                             break;
@@ -325,20 +252,13 @@ namespace AlarmWorkflow.Parser.Library
                                 switch (prefix)
                                 {
                                     case "EINSATZMITTELNAME":
-                                        last.FullName = msg.Trim();
+                                        last.FullName = msg;
                                         break;
-
-                                    case "GEF. GERƒTE":
-                                        // Only add to requested equipment if there is some text,
-                                        // otherwise the whole vehicle is the requested equipment
-                                        if (!string.IsNullOrWhiteSpace(msg))
-                                        {
-                                            last.RequestedEquipment.Add(msg);
-                                        }
+                                    case "GEF. GER√ÑTE":
+                                        last.RequestedEquipment.Add(msg);
                                         operation.Resources.Add(last);
                                         last = new OperationResource();
                                         break;
-
                                 }
                             }
                             break;
@@ -373,18 +293,13 @@ namespace AlarmWorkflow.Parser.Library
             DEinsatzgrund,
             EEinsatzmittel,
             FBemerkung,
+
             /// <summary>
             /// Footer text. Introduced by "ENDE FAX". Can be ignored completely.
             /// </summary>
-            GFooter
+            GFooter,
         }
-        private enum InnerSection
-        {
-            AStraﬂe,
-            BOrt,
-            CObjekt,
-        }
+
         #endregion
     }
 }
-

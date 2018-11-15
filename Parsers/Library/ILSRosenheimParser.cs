@@ -14,9 +14,12 @@
 // along with AlarmWorkflow.  If not, see <http://www.gnu.org/licenses/>.
 
 using System;
+using System.Globalization;
+using System.Text.RegularExpressions;
 using AlarmWorkflow.Shared.Core;
 using AlarmWorkflow.Shared.Diagnostics;
 using AlarmWorkflow.Shared.Extensibility;
+using GeoUtility.GeoSystem;
 
 namespace AlarmWorkflow.Parser.Library
 {
@@ -28,7 +31,7 @@ namespace AlarmWorkflow.Parser.Library
         private readonly string[] _keywords = new[]
             {
                 "Einsatz-Nr.", "Name", "Straße", "Abschnitt",
-                "Ortsteil", "Kreuzung", "Objekt", "Schlagw.",
+                "Gemeinde", "Kreuzung", "Objekt", "Schlagw.",
                 "Stichwort", "Priorität", "Alarmiert", "gef. Gerät"
             };
 
@@ -55,6 +58,21 @@ namespace AlarmWorkflow.Parser.Library
                     }
                     if (GetSection(line.Trim(), ref section, ref keywordsOnly))
                     {
+                        if (section == CurrentSection.CEinsatzort)
+                        {
+                            Regex r = new Regex(@"\d+");
+                            var matches = r.Matches(line);
+                            if (matches.Count == 2)
+                            {
+                                int rechts = Convert.ToInt32(matches[0].Value);
+                                int hoch = Convert.ToInt32(matches[1].Value);
+                                GaussKrueger gauss = new GaussKrueger(rechts, hoch);
+                                Geographic geo = (Geographic)gauss;
+                                operation.Einsatzort.GeoLatitude = geo.Latitude;
+                                operation.Einsatzort.GeoLongitude = geo.Longitude;
+                            }
+                        }
+
                         continue;
                     }
 
@@ -114,16 +132,23 @@ namespace AlarmWorkflow.Parser.Library
                                             operation.Einsatzort.StreetNumber = streetNumber;
                                         }
                                         break;
-                                    case "ORTSTEIL":
+                                    case "GEMEINDE":
                                         {
-                                            operation.Einsatzort.City = msg;
+                                            operation.Einsatzort.ZipCode = ParserUtility.ReadZipCodeFromCity(msg);
+                                            if (string.IsNullOrWhiteSpace(operation.Einsatzort.ZipCode))
+                                            {
+                                                Logger.Instance.LogFormat(LogType.Warning, this, "Could not find a zip code for city '{0}'. Route planning may fail or yield wrong results!", operation.Einsatzort.City);
+                                            }
+
+                                            operation.Einsatzort.City = msg.Remove(0, operation.Einsatzort.ZipCode.Length).Trim();
+
                                             // The City-text often contains a dash after which the administrative city appears multiple times (like "City A - City A City A").
                                             // However we can (at least with google maps) omit this information without problems!
-                                            int dashIndex = msg.IndexOf('-');
+                                            int dashIndex = operation.Einsatzort.City.IndexOf(" - ");
                                             if (dashIndex != -1)
                                             {
                                                 // Ignore everything after the dash
-                                                operation.Einsatzort.City = operation.Einsatzort.City.Substring(0, dashIndex);
+                                                operation.Einsatzort.City = operation.Einsatzort.City.Substring(0, dashIndex).Trim();
                                             }
                                         }
                                         break;
@@ -244,7 +269,7 @@ namespace AlarmWorkflow.Parser.Library
                 keywordsOnly = false;
                 return true;
             }
-            if (line.Contains("ENDE ALARMFAX"))
+            if (line.Contains("ENDE ALARMDEPESCHE"))
             {
                 section = CurrentSection.HFooter;
                 keywordsOnly = false;
@@ -266,7 +291,8 @@ namespace AlarmWorkflow.Parser.Library
             EEinsatzmittel,
             FBemerkung,
             GHinweis,
-            HFooter
+            HFooter,
+
         }
 
         #endregion

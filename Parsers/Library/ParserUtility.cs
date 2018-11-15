@@ -209,7 +209,7 @@ namespace AlarmWorkflow.Parser.Library
             int length;
             streetNumber = "1";
             appendix = string.Empty;
-            Match match = Regex.Match(line, @"Haus-?Nr.(\/Km)?:");
+            Match match = Regex.Match(line, @"Haus-?Nr.(\/Km)? ?:");
             if (IsHighway(line))
             {
                 if (!match.Success)
@@ -263,7 +263,7 @@ namespace AlarmWorkflow.Parser.Library
                 }
             }
         }
-
+        
         private static bool IsHighway(string line)
         {
             return StreetTokens.Any(x => Regex.IsMatch(line, x));

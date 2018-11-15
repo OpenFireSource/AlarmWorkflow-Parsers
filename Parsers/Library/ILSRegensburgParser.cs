@@ -14,10 +14,12 @@
 // along with AlarmWorkflow.  If not, see <http://www.gnu.org/licenses/>.
 
 using System;
+using System.Globalization;
 using System.Text.RegularExpressions;
 using AlarmWorkflow.Shared.Core;
 using AlarmWorkflow.Shared.Diagnostics;
 using AlarmWorkflow.Shared.Extensibility;
+using GeoUtility.GeoSystem;
 
 namespace AlarmWorkflow.Parser.Library
 {
@@ -29,7 +31,7 @@ namespace AlarmWorkflow.Parser.Library
         private readonly string[] _keywords = new[]
             {
                 "Einsatznummer", "Name", "Straße", "Abschnitt", "Ort",
-                "Gemeinde", "Kreuzung", "Objekt", "Schlagw.",
+                "Gemeinde", "Kreuzung", "Objekt", "Koordinate", "Schlagw.",
                 "Stichwort", "Prio.", "Alarmiert", "gef. Gerät"
             };
 
@@ -45,6 +47,9 @@ namespace AlarmWorkflow.Parser.Library
             lines = Utilities.Trim(lines);
             CurrentSection section = CurrentSection.AHeader;
             bool keywordsOnly = true;
+            bool multiLineProperties = false;
+            string keyword = "";
+            string prefix = "";
             for (int i = 0; i < lines.Length; i++)
             {
                 try
@@ -54,36 +59,41 @@ namespace AlarmWorkflow.Parser.Library
                     {
                         continue;
                     }
-                    if (GetSection(line.Trim(), ref section, ref keywordsOnly))
+                    if (GetSection(line.Trim(), ref section, ref keywordsOnly, ref multiLineProperties))
                     {
                         continue;
                     }
 
                     string msg = line;
-                    string prefix = "";
 
                     // Make the keyword check - or not (depends on the section we are in; see above)
-                    string keyword = "";
+                    if (!multiLineProperties)
+                    {
+                        prefix = "";
+                    }
                     if (keywordsOnly)
                     {
-                        if (!ParserUtility.StartsWithKeyword(line, _keywords, out keyword))
+                        bool foundKeyword = ParserUtility.StartsWithKeyword(line, _keywords, out keyword);
+                        if (!foundKeyword && !multiLineProperties)
                         {
                             continue;
                         }
-
-                        int x = line.IndexOf(':');
-                        if (x == -1)
+                        if (foundKeyword)
                         {
-                            // If there is no colon found (may happen occasionally) then simply remove the length of the keyword from the beginning
-                            prefix = keyword;
-                            msg = line.Remove(0, prefix.Length).Trim();
+                            int x = line.IndexOf(':');
+                            if (x == -1)
+                            {
+                                // If there is no colon found (may happen occasionally) then simply remove the length of the keyword from the beginning
+                                prefix = keyword;
+                                msg = line.Remove(0, prefix.Length).Trim();
+                            }
+                            else
+                            {
+                                prefix = line.Substring(0, x);
+                                msg = line.Substring(x + 1).Trim();
+                            }
+                            prefix = prefix.Trim().ToUpperInvariant();
                         }
-                        else
-                        {
-                            prefix = line.Substring(0, x);
-                            msg = line.Substring(x + 1).Trim();
-                        }
-                        prefix = prefix.Trim().ToUpperInvariant();
                     }
 
                     // Parse each section
@@ -100,7 +110,7 @@ namespace AlarmWorkflow.Parser.Library
                             }
                             break;
                         case CurrentSection.BMitteiler:
-                            operation.Messenger = line.Remove(0, keyword.Length).Trim();
+                            operation.Messenger = msg;
                             break;
                         case CurrentSection.CEinsatzort:
                             {
@@ -117,15 +127,21 @@ namespace AlarmWorkflow.Parser.Library
                                         break;
                                     case "ORT":
                                         {
-                                            Match zip = Regex.Match(msg, @"[0-9]{5}");
-                                            if (zip.Success)
+                                            operation.Einsatzort.ZipCode = ParserUtility.ReadZipCodeFromCity(msg);
+                                            if (string.IsNullOrWhiteSpace(operation.Einsatzort.ZipCode))
                                             {
-                                                operation.Einsatzort.ZipCode = zip.Value;
-                                                operation.Einsatzort.City = msg.Replace(zip.Value, "").Trim();
+                                                Logger.Instance.LogFormat(LogType.Warning, this, "Could not find a zip code for city '{0}'. Route planning may fail or yield wrong results!", operation.Einsatzort.City);
                                             }
-                                            else
+
+                                            operation.Einsatzort.City = msg.Remove(0, operation.Einsatzort.ZipCode.Length).Trim();
+
+                                            // The City-text often contains a dash after which the administrative city appears multiple times (like "City A - City A City A").
+                                            // However we can (at least with google maps) omit this information without problems!
+                                            int dashIndex = operation.Einsatzort.City.IndexOf(" - ");
+                                            if (dashIndex != -1)
                                             {
-                                                operation.Einsatzort.City = msg;
+                                                // Ignore everything after the dash
+                                                operation.Einsatzort.City = operation.Einsatzort.City.Substring(0, dashIndex).Trim();
                                             }
                                             break;
                                         }
@@ -137,16 +153,30 @@ namespace AlarmWorkflow.Parser.Library
                                     case "OBJEKT":
                                         if (msg.Contains("EPN:"))
                                         {
-                                            operation.Einsatzort.Property = ParserUtility.GetTextBetween(line, null, "EPN");
-                                            operation.OperationPlan = ParserUtility.GetTextBetween(line, "EPN");
+                                            operation.Einsatzort.Property = ParserUtility.GetTextBetween(msg, null, "EPN");
+                                            operation.OperationPlan = ParserUtility.GetTextBetween(msg, "EPN");
                                         }
                                         else
                                         {
                                             operation.Einsatzort.Property = msg;
                                         }
                                         break;
+                                    case "ABSCHNITT":
                                     case "KREUZUNG":
-                                        operation.Einsatzort.Intersection = msg;
+                                        operation.Einsatzort.Intersection += msg;
+                                        break;
+                                    case "KOORDINATE":
+                                        Regex r = new Regex(@"\d+");
+                                        var matches = r.Matches(line);
+                                        if (matches.Count == 2)
+                                        {
+                                            int rechts = Convert.ToInt32(matches[0].Value);
+                                            int hoch = Convert.ToInt32(matches[1].Value);
+                                            GaussKrueger gauss = new GaussKrueger(rechts, hoch);
+                                            Geographic geo = (Geographic)gauss;
+                                            operation.Einsatzort.GeoLatitude = geo.Latitude;
+                                            operation.Einsatzort.GeoLongitude = geo.Longitude;
+                                        }
                                         break;
                                 }
                             }
@@ -174,9 +204,6 @@ namespace AlarmWorkflow.Parser.Library
                                     case "NAME":
                                         last.FullName = msg;
                                         break;
-                                    case "ALARMIERT":
-                                        last.Timestamp = ParserUtility.TryGetTimestampFromMessage(msg, DateTime.Now).ToString();
-                                        break;
                                     case "GEF. GERÄT":
                                         // Only add to requested equipment if there is some text,
                                         // otherwise the whole vehicle is the requested equipment
@@ -184,6 +211,9 @@ namespace AlarmWorkflow.Parser.Library
                                         {
                                             last.RequestedEquipment.Add(msg);
                                         }
+                                        break;
+                                    case "ALARMIERT":
+                                        last.Timestamp = ParserUtility.TryGetTimestampFromMessage(msg, DateTime.Now).ToString();
 
                                         operation.Resources.Add(last);
                                         last = new OperationResource();
@@ -206,6 +236,7 @@ namespace AlarmWorkflow.Parser.Library
                 {
                     Logger.Instance.LogFormat(LogType.Warning, this, "Error while parsing line '{0}'. The error message was: {1}", i, ex.Message);
                 }
+                
             }
             return operation;
         }
@@ -214,11 +245,12 @@ namespace AlarmWorkflow.Parser.Library
 
         #region Methods
 
-        private bool GetSection(String line, ref CurrentSection section, ref bool keywordsOnly)
+        private bool GetSection(String line, ref CurrentSection section, ref bool keywordsOnly, ref bool multiLineProperties)
         {
             if (line.Contains("MITTEILER"))
             {
                 section = CurrentSection.BMitteiler;
+                multiLineProperties = false;
                 keywordsOnly = true;
                 return true;
             }
@@ -226,29 +258,35 @@ namespace AlarmWorkflow.Parser.Library
             {
                 section = CurrentSection.CEinsatzort;
                 keywordsOnly = true;
+                multiLineProperties = true;
                 return true;
             }
             if (line.Contains("EINSATZGRUND"))
             {
                 section = CurrentSection.DEinsatzgrund;
+                multiLineProperties = false;
                 keywordsOnly = true;
                 return true;
             }
             if (line.Contains("EINSATZMITTEL"))
             {
                 section = CurrentSection.EEinsatzmittel;
+
+                multiLineProperties = false;
                 keywordsOnly = true;
                 return true;
             }
             if (line.Contains("BEMERKUNG"))
             {
                 section = CurrentSection.FBemerkung;
+                multiLineProperties = false;
                 keywordsOnly = false;
                 return true;
             }
             if (line.Contains("ENDE ALARMFAX — V2.0"))
             {
                 section = CurrentSection.GFooter;
+                multiLineProperties = false;
                 keywordsOnly = false;
                 return true;
             }

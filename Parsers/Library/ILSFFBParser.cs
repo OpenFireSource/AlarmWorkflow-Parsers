@@ -17,6 +17,8 @@ using System;
 using System.Linq;
 using AlarmWorkflow.Shared.Core;
 using AlarmWorkflow.Shared.Extensibility;
+using GeoUtility.GeoSystem;
+using System.Globalization;
 
 namespace AlarmWorkflow.Parser.Library
 {
@@ -27,8 +29,8 @@ namespace AlarmWorkflow.Parser.Library
 
         private readonly string[] _keywords = new[]
                                                         {
-                                                            "ALARM","E-Nr","EINSATZORT","STRAßE",
-                                                            "ORTSTEIL/ORT","OBJEKT","EINSATZPLAN","MELDEBILD",
+                                                            "ALARM","E-Nr","EINSATZORT","STRAßE","KOORDINATEN", "ABSCHNITT",
+                                                            "ORTSTEIL / ORT","ORTSTEIL/ORT","OBJEKT","EINSATZPLAN","MELDEBILD",
                                                             "EINSATZSTICHWORT","HINWEIS","EINSATZMITTEL","(ALARMSCHREIBEN ENDE)"
                                                         };
 
@@ -39,28 +41,35 @@ namespace AlarmWorkflow.Parser.Library
         Operation IParser.Parse(string[] lines)
         {
             Operation operation = new Operation();
-            CurrentSection section = CurrentSection.AAnfang;
+            CurrentSection section = CurrentSection.Anfang;
             lines = Utilities.Trim(lines);
+            string streetData = string.Empty;
+            string sectionData = string.Empty;
+
             foreach (var line in lines)
             {
                 string keyword;
+
                 if (ParserUtility.StartsWithKeyword(line, _keywords, out keyword))
                 {
                     switch (keyword.Trim())
                     {
-                        case "E-Nr": { section = CurrentSection.BeNr; break; }
-                        case "EINSATZORT": { section = CurrentSection.CEinsatzort; break; }
-                        case "STRAßE": { section = CurrentSection.DStraße; break; }
-                        case "ORTSTEIL/ORT": { section = CurrentSection.EOrt; break; }
-                        case "OBJEKT": { section = CurrentSection.FObjekt; break; }
-                        case "EINSATZPLAN": { section = CurrentSection.GEinsatzplan; break; }
-                        case "MELDEBILD": { section = CurrentSection.HMeldebild; break; }
-                        case "EINSATZSTICHWORT": { section = CurrentSection.JEinsatzstichwort; break; }
-                        case "HINWEIS": { section = CurrentSection.KHinweis; break; }
-                        case "EINSATZMITTEL": { section = CurrentSection.LEinsatzmittel; break; }
+                        case "E-Nr": { section = CurrentSection.ENr; break; }
+                        case "EINSATZORT": { section = CurrentSection.Einsatzort; break; }
+                        case "STRAßE": { section = CurrentSection.Straße; break; }
+                        case "ABSCHNITT": { section = CurrentSection.Abschnitt; break; }
+                        case "KOORDINATEN": { section = CurrentSection.Koordinaten; break; }
+                        case "ORTSTEIL/ORT":
+                        case "ORTSTEIL / ORT": { section = CurrentSection.Ort; break; }
+                        case "OBJEKT": { section = CurrentSection.Objekt; break; }
+                        case "EINSATZPLAN": { section = CurrentSection.Einsatzplan; break; }
+                        case "MELDEBILD": { section = CurrentSection.Meldebild; break; }
+                        case "EINSATZSTICHWORT": { section = CurrentSection.Einsatzstichwort; break; }
+                        case "HINWEIS": { section = CurrentSection.Hinweis; break; }
+                        case "EINSATZMITTEL": { section = CurrentSection.Einsatzmittel; break; }
                         case "(ALARMSCHREIBEN ENDE)":
                             {
-                                section = CurrentSection.MEnde; break;
+                                section = CurrentSection.Ende; break;
                             }
                     }
                 }
@@ -68,42 +77,46 @@ namespace AlarmWorkflow.Parser.Library
 
                 switch (section)
                 {
-                    case CurrentSection.BeNr:
-                        string opnummer = ParserUtility.GetTextBetween(line, "ALARM");
-                        string optime = ParserUtility.GetTextBetween("ALARM");
+                    case CurrentSection.ENr:
+                        string opnummer = ParserUtility.GetTextBetween(line, null, "ALARM");
+                        string optime = ParserUtility.GetTextBetween(line, "ALARM");
                         operation.OperationNumber = ParserUtility.GetMessageText(opnummer, keyword);
                         operation.Timestamp = ParserUtility.ReadFaxTimestamp(optime, DateTime.Now);
                         break;
-                    case CurrentSection.CEinsatzort:
+                    case CurrentSection.Einsatzort:
                         operation.Zielort.Location = ParserUtility.GetMessageText(line, keyword);
                         break;
-                    case CurrentSection.DStraße:
+                    case CurrentSection.Straße:
                         string msg = ParserUtility.GetMessageText(line, keyword);
-                        string street, streetNumber, appendix;
-                        ParserUtility.AnalyzeStreetLine(msg, out street, out streetNumber, out appendix);
-                        operation.CustomData["Einsatzort Zusatz"] = appendix;
-                        operation.Einsatzort.Street = street;
-                        operation.Einsatzort.StreetNumber = streetNumber;
+                        streetData += msg;
                         break;
-                    case CurrentSection.EOrt:
+                    case CurrentSection.Abschnitt:
+                        sectionData += ParserUtility.GetMessageText(line, keyword);
+                        break;
+                    case CurrentSection.Ort:
                         operation.Einsatzort.City = ParserUtility.GetMessageText(line, keyword);
+                        if (operation.Einsatzort.City.Contains(" - "))
+                        {
+                            int i = operation.Einsatzort.City.IndexOf(" - ");
+                            operation.Einsatzort.City = operation.Einsatzort.City.Substring(0, i).Trim();
+                        }
                         break;
-                    case CurrentSection.FObjekt:
-                        operation.Einsatzort.Property = ParserUtility.GetMessageText(line, keyword);
+                    case CurrentSection.Objekt:
+                        operation.Einsatzort.Property += ParserUtility.GetMessageText(line, keyword);
                         break;
-                    case CurrentSection.GEinsatzplan:
+                    case CurrentSection.Einsatzplan:
                         operation.OperationPlan = ParserUtility.GetMessageText(line, keyword);
                         break;
-                    case CurrentSection.HMeldebild:
+                    case CurrentSection.Meldebild:
                         operation.Picture = operation.Picture.AppendLine(ParserUtility.GetMessageText(line, keyword));
                         break;
-                    case CurrentSection.JEinsatzstichwort:
+                    case CurrentSection.Einsatzstichwort:
                         operation.Keywords.EmergencyKeyword = ParserUtility.GetMessageText(line, keyword);
                         break;
-                    case CurrentSection.KHinweis:
+                    case CurrentSection.Hinweis:
                         operation.Comment = operation.Comment.AppendLine(ParserUtility.GetMessageText(line, keyword));
                         break;
-                    case CurrentSection.LEinsatzmittel:
+                    case CurrentSection.Einsatzmittel:
                         if (line.Equals("EINSATZMITTEL: ", StringComparison.InvariantCultureIgnoreCase))
                         {
                             break;
@@ -120,13 +133,31 @@ namespace AlarmWorkflow.Parser.Library
 
                         }
                         break;
+                    case CurrentSection.Koordinaten:
+                        string coords = ParserUtility.GetMessageText(line, keyword);
+                        if (string.IsNullOrWhiteSpace(coords))
+                        {
+                            break;
+                        }
+                        double east = double.Parse(coords.Split('/')[0],CultureInfo.InvariantCulture);
+                        double north = double.Parse(coords.Split('/')[1], CultureInfo.InvariantCulture);
+                        GaussKrueger gaussKrueger = new GaussKrueger(east, north);
+                        Geographic geographic = gaussKrueger.ConvertTo<Geographic>();
 
-                    case CurrentSection.MEnde:
+                        operation.Einsatzort.GeoLatitude = geographic.Latitude;
+                        operation.Einsatzort.GeoLongitude = geographic.Longitude;
+                        break;
+                    case CurrentSection.Ende:
                         break;
 
                 }
             }
-
+            string street, streetNumber, appendix;
+            ParserUtility.AnalyzeStreetLine(streetData.Replace("1.2", ""), out street, out streetNumber, out appendix);
+            operation.CustomData["Einsatzort Zusatz"] = appendix;
+            operation.Einsatzort.Street = street.Trim();
+            operation.Einsatzort.StreetNumber = streetNumber;
+            operation.Einsatzort.Intersection = sectionData;
             return operation;
         }
 
@@ -136,18 +167,20 @@ namespace AlarmWorkflow.Parser.Library
 
         private enum CurrentSection
         {
-            AAnfang,
-            BeNr,
-            CEinsatzort,
-            DStraße,
-            EOrt,
-            FObjekt,
-            GEinsatzplan,
-            HMeldebild,
-            JEinsatzstichwort,
-            KHinweis,
-            LEinsatzmittel,
-            MEnde
+            Anfang,
+            ENr,
+            Einsatzort,
+            Straße,
+            Ort,
+            Objekt,
+            Einsatzplan,
+            Meldebild,
+            Einsatzstichwort,
+            Hinweis,
+            Einsatzmittel,
+            Ende,
+            Koordinaten,
+            Abschnitt
         }
 
         #endregion
