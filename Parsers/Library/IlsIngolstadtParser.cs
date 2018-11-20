@@ -17,10 +17,10 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Text.RegularExpressions;
+using AlarmWorkflow.Parser.Library.util;
 using AlarmWorkflow.Shared.Core;
 using AlarmWorkflow.Shared.Diagnostics;
 using AlarmWorkflow.Shared.Extensibility;
-using GeoUtility.GeoSystem;
 
 namespace AlarmWorkflow.Parser.Library
 {
@@ -147,10 +147,9 @@ namespace AlarmWorkflow.Parser.Library
                                         if (matches.Count == 2)
                                         {
                                             NumberFormatInfo nfi = new NumberFormatInfo { NumberDecimalSeparator = "." };
-                                            double rechts = Convert.ToDouble(matches[0].Value, nfi);
-                                            double hoch = Convert.ToDouble(matches[1].Value, nfi);
-                                            GaussKrueger gauss = new GaussKrueger(rechts, hoch);
-                                            Geographic geo = (Geographic)gauss;
+                                            double geoRechts = Convert.ToDouble(matches[0].Value, nfi);
+                                            double geoHoch = Convert.ToDouble(matches[1].Value, nfi);
+                                            var geo = GeographicCoords.FromGaussKrueger(geoRechts, geoHoch);
                                             operation.Einsatzort.GeoLatitude = geo.Latitude;
                                             operation.Einsatzort.GeoLongitude = geo.Longitude;
                                         }

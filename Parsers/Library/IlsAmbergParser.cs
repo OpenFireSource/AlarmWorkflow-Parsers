@@ -15,10 +15,10 @@
 
 using System;
 using System.Globalization;
+using AlarmWorkflow.Parser.Library.util;
 using AlarmWorkflow.Shared.Core;
 using AlarmWorkflow.Shared.Diagnostics;
 using AlarmWorkflow.Shared.Extensibility;
-using GeoUtility.GeoSystem;
 
 namespace AlarmWorkflow.Parser.Library
 {
@@ -110,8 +110,7 @@ namespace AlarmWorkflow.Parser.Library
                                     break;
                                 case "Y":
                                     geoY = double.Parse(msg, nfi);
-                                    GaussKrueger gauss = new GaussKrueger(geoX, geoY);
-                                    Geographic geo = (Geographic)gauss;
+                                    var geo = GeographicCoords.FromGaussKrueger(geoX, geoY);
                                     operation.Einsatzort.GeoLatitude = geo.Latitude;
                                     operation.Einsatzort.GeoLongitude = geo.Longitude;
                                     break;

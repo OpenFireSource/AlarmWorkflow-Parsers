@@ -18,8 +18,8 @@ using System.Text.RegularExpressions;
 using AlarmWorkflow.Shared.Core;
 using AlarmWorkflow.Shared.Diagnostics;
 using AlarmWorkflow.Shared.Extensibility;
-using GeoUtility.GeoSystem;
 using System.Globalization;
+using AlarmWorkflow.Parser.Library.util;
 
 namespace AlarmWorkflow.Parser.Library
 {
@@ -225,8 +225,7 @@ namespace AlarmWorkflow.Parser.Library
                                             double geoX = 0, geoY = 0;
                                             geoX = double.Parse(result.Groups[1].Value, CultureInfo.InvariantCulture);
                                             geoY = double.Parse(result.Groups[2].Value, CultureInfo.InvariantCulture);
-                                            GaussKrueger gauss = new GaussKrueger(geoX, geoY);
-                                            Geographic geo = (Geographic)gauss;
+                                            var geo = GeographicCoords.FromGaussKrueger(geoX, geoY);
                                             operation.Einsatzort.GeoLatitude = geo.Latitude;
                                             operation.Einsatzort.GeoLongitude = geo.Longitude;
                                         }

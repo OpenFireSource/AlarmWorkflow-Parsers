@@ -17,8 +17,8 @@ using System;
 using System.Linq;
 using AlarmWorkflow.Shared.Core;
 using AlarmWorkflow.Shared.Extensibility;
-using GeoUtility.GeoSystem;
 using System.Text.RegularExpressions;
+using AlarmWorkflow.Parser.Library.util;
 
 namespace AlarmWorkflow.Parser.Library
 {
@@ -151,8 +151,7 @@ namespace AlarmWorkflow.Parser.Library
                         var matches = r.Matches(coords);
                         if (matches.Count == 2)
                         {
-                            GaussKrueger gauss = new GaussKrueger(Convert.ToDouble(matches[0].Value), Convert.ToDouble(matches[1].Value));
-                            Geographic geo = (Geographic)gauss;
+                            var geo = GeographicCoords.FromGaussKrueger(Convert.ToDouble(matches[0].Value), Convert.ToDouble(matches[1].Value));
                             operation.Einsatzort.GeoLatitude = geo.Latitude;
                             operation.Einsatzort.GeoLongitude = geo.Longitude;
                         }
