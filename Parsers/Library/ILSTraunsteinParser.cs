@@ -15,10 +15,10 @@
 
 using System;
 using System.Globalization;
+using AlarmWorkflow.Parser.Library.util;
 using AlarmWorkflow.Shared.Core;
 using AlarmWorkflow.Shared.Diagnostics;
 using AlarmWorkflow.Shared.Extensibility;
-using GeoUtility.GeoSystem;
 
 namespace AlarmWorkflow.Parser.Library
 {
@@ -296,8 +296,8 @@ namespace AlarmWorkflow.Parser.Library
                     Logger.Instance.LogFormat(LogType.Warning, this, "Error while parsing line '{0}'. The error message was: {1}", i, ex.Message);
                 }
             }
-            GaussKrueger gauss = new GaussKrueger(rechts, hoch);
-            Geographic geo = (Geographic)gauss;
+
+            var geo = GeographicCoords.FromGaussKrueger(rechts, hoch); ;
             operation.Einsatzort.GeoLatitude = geo.Latitude;
             operation.Einsatzort.GeoLongitude = geo.Longitude;
             return operation;

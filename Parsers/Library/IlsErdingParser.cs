@@ -19,7 +19,7 @@ using AlarmWorkflow.Shared.Diagnostics;
 using AlarmWorkflow.Shared.Extensibility;
 using System.Text.RegularExpressions;
 using System.Globalization;
-using GeoUtility.GeoSystem;
+using AlarmWorkflow.Parser.Library.util;
 
 namespace AlarmWorkflow.Parser.Library
 {
@@ -383,8 +383,7 @@ namespace AlarmWorkflow.Parser.Library
                                 
                                 if(geoRechts != 0  && geoHoch != 0)
                                 {
-                                    GaussKrueger gauss = new GaussKrueger(geoRechts, geoHoch);
-                                    Geographic geo = (Geographic)gauss;
+                                    var geo = GeographicCoords.FromGaussKrueger(geoRechts, geoHoch);
                                     operation.Einsatzort.GeoLatitude = geo.Latitude;
                                     operation.Einsatzort.GeoLongitude = geo.Longitude;
                                 }

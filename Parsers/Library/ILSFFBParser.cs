@@ -17,8 +17,8 @@ using System;
 using System.Linq;
 using AlarmWorkflow.Shared.Core;
 using AlarmWorkflow.Shared.Extensibility;
-using GeoUtility.GeoSystem;
 using System.Globalization;
+using AlarmWorkflow.Parser.Library.util;
 
 namespace AlarmWorkflow.Parser.Library
 {
@@ -141,11 +141,9 @@ namespace AlarmWorkflow.Parser.Library
                         }
                         double east = double.Parse(coords.Split('/')[0],CultureInfo.InvariantCulture);
                         double north = double.Parse(coords.Split('/')[1], CultureInfo.InvariantCulture);
-                        GaussKrueger gaussKrueger = new GaussKrueger(east, north);
-                        Geographic geographic = gaussKrueger.ConvertTo<Geographic>();
-
-                        operation.Einsatzort.GeoLatitude = geographic.Latitude;
-                        operation.Einsatzort.GeoLongitude = geographic.Longitude;
+                        var geo = GeographicCoords.FromGaussKrueger(east, north);
+                        operation.Einsatzort.GeoLatitude = geo.Latitude;
+                        operation.Einsatzort.GeoLongitude = geo.Longitude;
                         break;
                     case CurrentSection.Ende:
                         break;

@@ -14,12 +14,11 @@
 // along with AlarmWorkflow.  If not, see <http://www.gnu.org/licenses/>.
 
 using System;
-using System.Globalization;
 using System.Text.RegularExpressions;
+using AlarmWorkflow.Parser.Library.util;
 using AlarmWorkflow.Shared.Core;
 using AlarmWorkflow.Shared.Diagnostics;
 using AlarmWorkflow.Shared.Extensibility;
-using GeoUtility.GeoSystem;
 
 namespace AlarmWorkflow.Parser.Library
 {
@@ -170,10 +169,9 @@ namespace AlarmWorkflow.Parser.Library
                                         var matches = r.Matches(line);
                                         if (matches.Count == 2)
                                         {
-                                            int rechts = Convert.ToInt32(matches[0].Value);
-                                            int hoch = Convert.ToInt32(matches[1].Value);
-                                            GaussKrueger gauss = new GaussKrueger(rechts, hoch);
-                                            Geographic geo = (Geographic)gauss;
+                                            int geoRechts = Convert.ToInt32(matches[0].Value);
+                                            int geoHoch = Convert.ToInt32(matches[1].Value);
+                                            var geo = GeographicCoords.FromGaussKrueger(geoRechts, geoHoch);
                                             operation.Einsatzort.GeoLatitude = geo.Latitude;
                                             operation.Einsatzort.GeoLongitude = geo.Longitude;
                                         }
