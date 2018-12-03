@@ -3,6 +3,10 @@ AlarmWorkflow-Parsers
 
 Parsers for AlarmWorkflow
 
+## DEPRECATED
+
+This repository is deprecated. All files are moved to the AlarmWorkflow Main-Repository: https://github.com/OpenFireSource/AlarmWorkflow
+
 ## Build Status
 
 Stable | Development
